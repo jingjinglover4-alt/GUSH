@@ -1,0 +1,593 @@
+# -*- coding: utf-8 -*-
+"""
+HI拿智能派样SaaS管理系统 - Flask后端
+"""
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timedelta
+import hashlib
+import random
+import string
+import os
+
+app = Flask(__name__, static_url_path='/admin/static')
+app.config['SECRET_KEY'] = 'hinana-secret-key-2026'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////opt/hinana-admin/instance/hinana.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# 路由前缀
+ADMIN_PREFIX = '/admin'
+
+# ==================== 数据库模型 ====================
+
+class Admin(db.Model):
+    """管理员账号"""
+    __tablename__ = 'admins'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(20), default='admin')  # admin, customer
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    def set_password(self, password):
+        self.password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+    def check_password(self, password):
+        return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
+
+
+class Customer(db.Model):
+    """客户配置"""
+    __tablename__ = 'customers'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)  # 客户名称
+    logo_url = db.Column(db.String(255))  # Logo URL
+    bg_image_url = db.Column(db.String(255))  # 背景图URL
+    qrcode_url = db.Column(db.String(255))  # 二维码URL
+    slogan = db.Column(db.String(200))  # 广告语
+    app_name = db.Column(db.String(50))  # 应用名称
+
+    # 微信公众号配置
+    wx_appid = db.Column(db.String(100))  # 公众号AppID
+    wx_appsecret = db.Column(db.String(100))  # 公众号AppSecret
+
+    # 小程序配置
+    mp_appid = db.Column(db.String(100))  # 小程序AppID
+    mp_appsecret = db.Column(db.String(100))  # 小程序AppSecret
+
+    # 企业微信配置
+    ww_corpid = db.Column(db.String(100))  # 企业ID
+    ww_agentid = db.Column(db.String(50))  # 应用AgentID
+    ww_secret = db.Column(db.String(100))  # 应用Secret
+
+    # 兑换码配置
+    code_expire_seconds = db.Column(db.Integer, default=60)  # 有效期(秒)
+    code_length = db.Column(db.Integer, default=6)  # 码长度
+
+    status = db.Column(db.String(20), default='active')  # active, frozen
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    admins = db.relationship('Admin', backref='customer', lazy=True)
+    redeem_codes = db.relationship('RedeemCode', backref='customer', lazy=True)
+    user_records = db.relationship('UserRecord', backref='customer', lazy=True)
+    machines = db.relationship('Machine', backref='customer', lazy=True)
+
+
+class RedeemCode(db.Model):
+    """兑换码"""
+    __tablename__ = 'redeem_codes'
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(10), unique=True, nullable=False, index=True)
+    openid = db.Column(db.String(100), index=True)  # 微信用户ID
+    phone = db.Column(db.String(20), index=True)  # 手机号
+    machine_id = db.Column(db.Integer, db.ForeignKey('machines.id'), nullable=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, used, expired
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    expired_at = db.Column(db.DateTime)  # 过期时间
+    used_at = db.Column(db.DateTime)  # 使用时间
+    used_machine_id = db.Column(db.Integer)  # 使用时的机器ID
+    user_name = db.Column(db.String(50), default='')  # 姓名
+    user_phone = db.Column(db.String(20), default='')  # 用户手机号
+
+
+class UserRecord(db.Model):
+    """用户领取记录"""
+    __tablename__ = 'user_records'
+    id = db.Column(db.Integer, primary_key=True)
+    openid = db.Column(db.String(100), nullable=False, index=True)
+    phone = db.Column(db.String(20), index=True)  # 手机号
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    nickname = db.Column(db.String(100))  # 用户昵称
+    phone = db.Column(db.String(20))  # 手机号
+    claim_count = db.Column(db.Integer, default=0)  # 领取次数
+    last_claim_at = db.Column(db.DateTime)  # 最后领取时间
+    first_claim_at = db.Column(db.DateTime)  # 首次领取时间
+    can_claim = db.Column(db.Boolean, default=True)  # 是否可领取
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class Machine(db.Model):
+    """机器管理"""
+    __tablename__ = 'machines'
+    id = db.Column(db.Integer, primary_key=True)
+    machine_code = db.Column(db.String(50), unique=True, nullable=False)  # 机器编号
+    name = db.Column(db.String(100))  # 机器名称
+    location = db.Column(db.String(200))  # 位置
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    status = db.Column(db.String(20), default='online')  # online, offline
+    last_heartbeat = db.Column(db.DateTime)  # 最后心跳时间
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class Stats(db.Model):
+    """数据统计"""
+    __tablename__ = 'stats'
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    scan_count = db.Column(db.Integer, default=0)  # 扫码次数
+    claim_count = db.Column(db.Integer, default=0)  # 领取次数
+    redeem_count = db.Column(db.Integer, default=0)  # 核销次数
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+# ==================== 辅助函数 ====================
+
+def generate_code(length=6):
+    """生成随机码"""
+    return ''.join(random.choices(string.digits, k=length))
+
+
+def init_db():
+    """初始化数据库"""
+    with app.app_context():
+        db.create_all()
+        # 创建默认管理员
+        if not Admin.query.filter_by(username='admin').first():
+            admin = Admin(username='admin', role='admin')
+            admin.set_password('123456')
+            db.session.add(admin)
+            db.session.commit()
+            print("默认管理员已创建: admin / 123456")
+
+        # 创建默认客户
+        if not Customer.query.first():
+            customer = Customer(
+                name='高效传媒',
+                app_name='HI拿',
+                slogan='智能派样 · 精准触达 · 品效合一',
+                code_expire_seconds=60,
+                code_length=6
+            )
+            db.session.add(customer)
+            db.session.commit()
+            print("默认客户已创建: 高效传媒")
+
+
+# ==================== 页面路由 ====================
+
+@app.route(f'{ADMIN_PREFIX}/')
+def index():
+    """首页/登录页"""
+    if 'admin_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+
+@app.route(f'{ADMIN_PREFIX}/login', methods=['POST'])
+def login():
+    """登录处理"""
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+
+    admin = Admin.query.filter_by(username=username).first()
+
+    if admin and admin.check_password(password):
+        session['admin_id'] = admin.id
+        session['admin_name'] = admin.username
+        session['customer_id'] = admin.customer_id
+        session['role'] = admin.role
+        return jsonify({'success': True, 'message': '登录成功'})
+
+    return jsonify({'success': False, 'message': '用户名或密码错误'})
+
+
+@app.route(f'{ADMIN_PREFIX}/logout')
+def logout():
+    """登出"""
+    session.clear()
+    return redirect(url_for('index'))
+
+
+@app.route(f'{ADMIN_PREFIX}/dashboard')
+def dashboard():
+    """仪表盘"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+
+    customer_id = session.get('customer_id')
+
+    # 获取统计数据
+    today = datetime.now().date()
+
+    if customer_id:
+        # 客户视图
+        total_codes = RedeemCode.query.filter_by(customer_id=customer_id).count()
+        used_codes = RedeemCode.query.filter_by(customer_id=customer_id, status='used').count()
+        total_users = UserRecord.query.filter_by(customer_id=customer_id).count()
+        active_machines = Machine.query.filter_by(customer_id=customer_id, status='online').count()
+
+        # 今日数据
+        today_stats = Stats.query.filter_by(customer_id=customer_id, date=today).first()
+    else:
+        # 管理员视图
+        total_codes = RedeemCode.query.count()
+        used_codes = RedeemCode.query.filter_by(status='used').count()
+        total_users = UserRecord.query.count()
+        active_machines = Machine.query.filter_by(status='online').count()
+        today_stats = None
+
+    return render_template('dashboard.html',
+        total_codes=total_codes,
+        used_codes=used_codes,
+        total_users=total_users,
+        active_machines=active_machines,
+        today_stats=today_stats
+    )
+
+
+@app.route(f'{ADMIN_PREFIX}/customers')
+def customers_page():
+    """客户管理"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+    return render_template('customers.html')
+
+
+@app.route(f'{ADMIN_PREFIX}/codes')
+def codes_page():
+    """兑换码管理"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+    return render_template('codes.html')
+
+
+@app.route(f'{ADMIN_PREFIX}/machines')
+def machines_page():
+    """机器管理"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+    return render_template('machines.html')
+
+
+@app.route(f'{ADMIN_PREFIX}/users')
+def users_page():
+    """用户记录"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+    return render_template('users.html')
+
+
+@app.route(f'{ADMIN_PREFIX}/settings')
+def settings_page():
+    """系统设置"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+    return render_template('settings.html')
+
+
+# ==================== API接口 ====================
+
+@app.route(f'{ADMIN_PREFIX}/api/customers', methods=['GET'])
+def api_get_customers():
+    """获取客户列表"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    if session['role'] == 'admin':
+        customers = Customer.query.all()
+    else:
+        customers = [Customer.query.get(session['customer_id'])]
+
+    return jsonify({
+        'success': True,
+        'data': [{'id': c.id, 'name': c.name, 'app_name': c.app_name,
+                  'status': c.status, 'created_at': c.created_at.strftime('%Y-%m-%d %H:%M')}
+                 for c in customers]
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/customer/<int:cid>', methods=['GET'])
+def api_get_customer(cid):
+    """获取客户详情"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    customer = Customer.query.get(cid)
+    if not customer:
+        return jsonify({'success': False, 'message': '客户不存在'})
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'id': customer.id,
+            'name': customer.name,
+            'logo_url': customer.logo_url,
+            'bg_image_url': customer.bg_image_url,
+            'qrcode_url': customer.qrcode_url,
+            'slogan': customer.slogan,
+            'app_name': customer.app_name,
+            'wx_appid': customer.wx_appid,
+            'mp_appid': customer.mp_appid,
+            'ww_corpid': customer.ww_corpid,
+            'ww_agentid': customer.ww_agentid,
+            'code_expire_seconds': customer.code_expire_seconds,
+            'code_length': customer.code_length,
+            'status': customer.status
+        }
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/customer/<int:cid>', methods=['PUT'])
+def api_update_customer(cid):
+    """更新客户配置"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    customer = Customer.query.get(cid)
+    if not customer:
+        return jsonify({'success': False, 'message': '客户不存在'})
+
+    data = request.get_json()
+
+    # 可更新的字段
+    fields = ['name', 'logo_url', 'bg_image_url', 'qrcode_url', 'slogan',
+              'app_name', 'wx_appid', 'wx_appsecret', 'mp_appid', 'mp_appsecret',
+              'ww_corpid', 'ww_agentid', 'ww_secret',
+              'code_expire_seconds', 'code_length', 'status']
+
+    for field in fields:
+        if field in data:
+            setattr(customer, field, data[field])
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': '更新成功'})
+
+
+@app.route(f'{ADMIN_PREFIX}/api/codes', methods=['GET'])
+def api_get_codes():
+    """获取兑换码列表"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    customer_id = session.get('customer_id')
+    status = request.args.get('status', '')
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 20))
+
+    query = RedeemCode.query
+    if customer_id:
+        query = query.filter_by(customer_id=customer_id)
+    if status:
+        query = query.filter_by(status=status)
+
+    total = query.count()
+    codes = query.order_by(RedeemCode.created_at.desc()).offset((page-1)*limit).limit(limit).all()
+
+    return jsonify({
+        'success': True,
+        'total': total,
+        'page': page,
+        'data': [{
+            'id': c.id,
+            'code': c.code,
+            'status': c.status,
+            'user_name': c.user_name,
+            'user_phone': c.user_phone,
+            'openid': c.openid,
+            'created_at': c.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'expired_at': c.expired_at.strftime('%Y-%m-%d %H:%M:%S') if c.expired_at else '',
+            'used_at': c.used_at.strftime('%Y-%m-%d %H:%M:%S') if c.used_at else ''
+        } for c in codes]
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/codes/delete', methods=['POST'])
+def api_delete_codes():
+    """删除兑换码（物理删除）"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    data = request.get_json()
+    phone_numbers = data.get('phone_numbers', [])
+
+    if not phone_numbers:
+        return jsonify({'success': False, 'message': '请选择要删除的记录'})
+
+    # 物理删除
+    deleted_count = RedeemCode.query.filter(
+        RedeemCode.user_phone.in_(phone_numbers)
+    ).delete(synchronize_session=False)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'已删除 {deleted_count} 条记录',
+        'deleted_count': deleted_count
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/machines', methods=['GET'])
+def api_get_machines():
+    """获取机器列表"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    customer_id = session.get('customer_id')
+
+    query = Machine.query
+    if customer_id:
+        query = query.filter_by(customer_id=customer_id)
+
+    machines = query.all()
+
+    return jsonify({
+        'success': True,
+        'data': [{
+            'id': m.id,
+            'machine_code': m.machine_code,
+            'name': m.name,
+            'location': m.location,
+            'status': m.status,
+            'last_heartbeat': m.last_heartbeat.strftime('%Y-%m-%d %H:%M:%S') if m.last_heartbeat else ''
+        } for m in machines]
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/stats', methods=['GET'])
+def api_get_stats():
+    """获取统计数据"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    customer_id = session.get('customer_id')
+    days = int(request.args.get('days', 7))
+
+    query = Stats.query
+    if customer_id:
+        query = query.filter_by(customer_id=customer_id)
+
+    stats = query.order_by(Stats.date.desc()).limit(days).all()
+
+    return jsonify({
+        'success': True,
+        'data': [{
+            'date': s.date.strftime('%Y-%m-%d'),
+            'scan_count': s.scan_count,
+            'claim_count': s.claim_count,
+            'redeem_count': s.redeem_count
+        } for s in stats]
+    })
+
+
+# ==================== 机器端API ====================
+
+@app.route(f'{ADMIN_PREFIX}/api/redeem/verify', methods=['POST'])
+def api_verify_code():
+    """验证兑换码（机器端调用）"""
+    data = request.get_json()
+    code = data.get('code', '').strip()
+    machine_id = data.get('machine_id')
+    machine_code = data.get('machine_code')
+
+    # 查找机器
+    machine = None
+    if machine_code:
+        machine = Machine.query.filter_by(machine_code=machine_code).first()
+    elif machine_id:
+        machine = Machine.query.get(machine_id)
+
+    if not machine:
+        return jsonify({'success': False, 'message': '机器未注册'})
+
+    # 查找兑换码
+    redeem_code = RedeemCode.query.filter_by(code=code, customer_id=machine.customer_id).first()
+
+    if not redeem_code:
+        return jsonify({'success': False, 'message': '兑换码无效'})
+
+    # 检查状态
+    if redeem_code.status == 'used':
+        return jsonify({'success': False, 'message': '兑换码已使用'})
+
+    if redeem_code.status == 'expired' or (redeem_code.expired_at and datetime.now() > redeem_code.expired_at):
+        return jsonify({'success': False, 'message': '兑换码已过期'})
+
+    # 验证成功，返回发货指令
+    redeem_code.status = 'used'
+    redeem_code.used_at = datetime.now()
+    redeem_code.used_machine_id = machine.id
+    db.session.commit()
+
+    # 更新统计数据
+    today = datetime.now().date()
+    stats = Stats.query.filter_by(customer_id=machine.customer_id, date=today).first()
+    if stats:
+        stats.redeem_count += 1
+    else:
+        stats = Stats(customer_id=machine.customer_id, date=today, redeem_count=1)
+        db.session.add(stats)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': '验证成功',
+        'action': 'dispense'  # 机器收到此指令后发货
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/machine/heartbeat', methods=['POST'])
+def api_machine_heartbeat():
+    """机器心跳"""
+    data = request.get_json()
+    machine_code = data.get('machine_code')
+
+    machine = Machine.query.filter_by(machine_code=machine_code).first()
+    if machine:
+        machine.last_heartbeat = datetime.now()
+        machine.status = 'online'
+        db.session.commit()
+        return jsonify({'success': True, 'message': '心跳成功'})
+
+    return jsonify({'success': False, 'message': '机器未注册'})
+
+
+# ==================== 用户API ====================
+
+@app.route(f'{ADMIN_PREFIX}/api/users', methods=['GET'])
+def api_users():
+    """获取用户列表"""
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 20))
+    keyword = request.args.get('keyword', '')
+    
+    query = db.session.query(
+        RedeemCode.openid,
+        db.func.count(RedeemCode.id).label('claim_count'),
+        db.func.sum(db.cast(RedeemCode.status == 'used', db.Integer)).label('redeem_count'),
+        db.func.max(RedeemCode.created_at).label('last_claim_at')
+    ).group_by(RedeemCode.openid)
+    
+    if keyword:
+        query = query.filter(RedeemCode.openid.like(f'%{keyword}%'))
+    
+    total = query.count()
+    users = query.offset((page - 1) * limit).limit(limit).all()
+    
+    return jsonify({
+        'success': True,
+        'data': [{
+            'openid': u.openid,
+            'claim_count': u.claim_count,
+            'redeem_count': u.redeem_count or 0,
+            'last_claim_at': u.last_claim_at.strftime('%Y-%m-%d %H:%M') if u.last_claim_at else None
+        } for u in users],
+        'total': total,
+        'total_claims': RedeemCode.query.count(),
+        'total_redeems': RedeemCode.query.filter_by(status='used').count()
+    })
+
+# ==================== 启动 ====================
+
+if __name__ == '__main__':
+    init_db()
+    app.run(host='0.0.0.0', port=5001, debug=True)
+
+

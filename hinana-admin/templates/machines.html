@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器管理 - HI拿管理系统</title>
+    <link rel="stylesheet" href="/admin/static/css/admin.css">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .page-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        .page-subtitle {
+            font-size: 0.9rem;
+            color: #999;
+            margin-top: 5px;
+        }
+        .btn-add {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-add:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .table-container {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        .table-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .table-title {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: #666;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .data-table td {
+            padding: 18px 20px;
+            border-bottom: 1px solid #f5f5f5;
+            color: #333;
+        }
+        .data-table tr:hover td {
+            background: #f8f9fa;
+        }
+        .machine-code {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1rem;
+            letter-spacing: 1px;
+        }
+        .location-text {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-dot.online { background: #38ef7d; }
+        .status-dot.offline { background: #ff6b6b; }
+        .heartbeat-time {
+            font-size: 0.85rem;
+            color: #999;
+        }
+        .action-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: #fff;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .action-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .action-btn.danger:hover {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        .filter-group {
+            display: flex;
+            gap: 10px;
+        }
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        .empty-text {
+            color: #999;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        .empty-sub {
+            color: #ccc;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-gush">GUSH</span>
+                    <span class="logo-app">HI拿</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/admin/customers" class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    <span>客户管理</span>
+                </a>
+                <a href="/admin/codes" class="nav-item">
+                    <span class="nav-icon">🎫</span>
+                    <span>兑换码</span>
+                </a>
+                <a href="/admin/machines" class="nav-item active">
+                    <span class="nav-icon">📱</span>
+                    <span>机器管理</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>用户记录</span>
+                </a>
+                <a href="/admin/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+                <a href="/admin/logout" class="logout-btn">退出</a>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">机器管理</h1>
+                    <p class="page-subtitle">管理所有派样机设备，查看运行状态</p>
+                </div>
+                <button class="btn-add" onclick="showAddModal()">
+                    <span>+</span> 添加机器
+                </button>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="machine-stats">
+                <div class="machine-stat-card">
+                    <div class="stat-num" id="totalCount">-</div>
+                    <div class="stat-label">全部机器</div>
+                </div>
+                <div class="machine-stat-card green">
+                    <div class="stat-num" id="onlineCount">-</div>
+                    <div class="stat-label">在线机器</div>
+                </div>
+                <div class="machine-stat-card orange">
+                    <div class="stat-num" id="offlineCount">-</div>
+                    <div class="stat-label">离线机器</div>
+                </div>
+            </div>
+
+            <!-- 数据表格 -->
+            <div class="table-container">
+                <div class="table-header">
+                    <span class="table-title">设备列表</span>
+                    <div class="filter-group">
+                        <select class="filter-select" id="statusFilter" onchange="loadMachines()">
+                            <option value="">全部状态</option>
+                            <option value="online">在线</option>
+                            <option value="offline">离线</option>
+                        </select>
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>机器编号</th>
+                            <th>名称</th>
+                            <th>所属客户</th>
+                            <th>位置</th>
+                            <th>状态</th>
+                            <th>最后心跳</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="machineList">
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <div class="empty-icon">📱</div>
+                                <div class="empty-text">加载中...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- 添加机器弹窗 -->
+    <div id="addModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; padding:30px; width:450px; max-width:90%;">
+            <h2 style="margin-bottom:20px; font-size:1.3rem;">添加新机器</h2>
+            <div class="form-group">
+                <label class="form-label">机器编号 *</label>
+                <input type="text" id="machineCode" class="form-input" placeholder="如: M001">
+            </div>
+            <div class="form-group">
+                <label class="form-label">机器名称</label>
+                <input type="text" id="machineName" class="form-input" placeholder="如: 总部大厅机器">
+            </div>
+            <div class="form-group">
+                <label class="form-label">安装位置</label>
+                <input type="text" id="machineLocation" class="form-input" placeholder="如: 深圳市南山区">
+            </div>
+            <div class="form-group">
+                <label class="form-label">所属客户</label>
+                <select id="customerSelect" class="form-input">
+                    <option value="">请选择客户</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:25px;">
+                <button class="action-btn" onclick="closeModal()">取消</button>
+                <button class="btn-add" style="padding:10px 20px;" onclick="addMachine()">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadMachines() {
+            const status = document.getElementById('statusFilter').value;
+            let url = '/admin/api/machines';
+            if (status) url += '?status=' + status;
+
+            Promise.all([
+                fetch(url).then(r => r.json()),
+                fetch('/admin/api/customers').then(r => r.json())
+            ]).then(([machinesData, customersData]) => {
+                const customers = {};
+                if (customersData.success) {
+                    customersData.data.forEach(c => customers[c.id] = c.name);
+                }
+                
+                const all = machinesData.data || [];
+                const online = all.filter(m => m.status === 'online').length;
+                document.getElementById('totalCount').textContent = all.length;
+                document.getElementById('onlineCount').textContent = online;
+                document.getElementById('offlineCount').textContent = all.length - online;
+                
+                renderMachines(all, customers);
+            });
+        }
+
+        function renderMachines(machines, customers) {
+            const tbody = document.getElementById('machineList');
+            if (machines.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📱</div><div class="empty-text">暂无机器数据</div><div class="empty-sub">点击右上角"添加机器"开始管理</div></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = machines.map(m => {
+                const statusClass = m.status === 'online' ? 'online' : 'offline';
+                const statusText = m.status === 'online' ? '在线' : '离线';
+                return '<tr>' +
+                    '<td><span class="machine-code">' + m.machine_code + '</span></td>' +
+                    '<td>' + (m.name || '-') + '</td>' +
+                    '<td>' + (customers[m.customer_id] || '-') + '</td>' +
+                    '<td><span class="location-text">' + (m.location || '-') + '</span></td>' +
+                    '<td><span class="status-dot ' + statusClass + '"></span>' + statusText + '</td>' +
+                    '<td><span class="heartbeat-time">' + (m.last_heartbeat || '-') + '</span></td>' +
+                    '<td><button class="action-btn" onclick="editMachine(\'' + m.machine_code + '\')">编辑</button> <button class="action-btn danger" onclick="deleteMachine(\'' + m.machine_code + '\')">删除</button></td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        function showAddModal() {
+            document.getElementById('addModal').style.display = 'flex';
+            fetch('/admin/api/customers').then(r => r.json()).then(data => {
+                if (data.success) {
+                    const select = document.getElementById('customerSelect');
+                    select.innerHTML = '<option value="">请选择客户</option>' + 
+                        data.data.map(c => '<option value="' + c.id + '">' + c.name + '</option>').join('');
+                }
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+
+        function addMachine() {
+            const machine_code = document.getElementById('machineCode').value.trim();
+            const name = document.getElementById('machineName').value.trim();
+            const location = document.getElementById('machineLocation').value.trim();
+            const customer_id = document.getElementById('customerSelect').value;
+
+            if (!machine_code) {
+                alert('请输入机器编号');
+                return;
+            }
+
+            fetch('/admin/api/machines', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ machine_code, name, location, customer_id })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    closeModal();
+                    loadMachines();
+                } else {
+                    alert(data.message || '添加失败');
+                }
+            });
+        }
+
+        function editMachine(code) {
+            alert('编辑功能开发中');
+        }
+
+        function deleteMachine(code) {
+            if (confirm('确定要删除机器 ' + code + ' 吗？')) {
+                fetch('/admin/api/machines/' + code, { method: 'DELETE' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) loadMachines();
+                        else alert(data.message || '删除失败');
+                    });
+            }
+        }
+
+        loadMachines();
+    </script>
+</body>
+</html>

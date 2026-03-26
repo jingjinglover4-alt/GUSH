@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - HI拿管理系统</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-gush">GUSH</span>
+                    <span class="logo-app">HI拿</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/customers" class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    <span>客户管理</span>
+                </a>
+                <a href="/codes" class="nav-item">
+                    <span class="nav-icon">🎫</span>
+                    <span>兑换码</span>
+                </a>
+                <a href="/machines" class="nav-item">
+                    <span class="nav-icon">📱</span>
+                    <span>机器管理</span>
+                </a>
+                <a href="/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>用户记录</span>
+                </a>
+                <a href="/settings" class="nav-item active">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+                <a href="/logout" class="logout-btn">退出</a>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>系统设置</h1>
+            </header>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>系统信息</h2>
+                </div>
+                <div class="card-body">
+                    <table class="data-table" style="max-width: 500px;">
+                        <tr>
+                            <td style="width: 150px; color: #666;">系统名称</td>
+                            <td>HI拿智能派样SaaS系统</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #666;">版本</td>
+                            <td>v1.0.0</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #666;">开发者</td>
+                            <td>GUSH 高效传媒</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #666;">技术支持</td>
+                            <td>WorkBuddy AI</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>接口文档</h2>
+                </div>
+                <div class="card-body">
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; font-family: monospace;">
+                        <p style="margin-bottom: 15px;"><strong>机器端验证接口：</strong></p>
+                        <p style="margin-bottom: 5px;">POST /api/redeem/verify</p>
+                        <p style="margin-bottom: 15px; font-size: 0.85rem; color: #666;">{ "code": "123456", "machine_code": "M001" }</p>
+
+                        <p style="margin-bottom: 15px;"><strong>机器心跳接口：</strong></p>
+                        <p style="margin-bottom: 5px;">POST /api/machine/heartbeat</p>
+                        <p style="margin-bottom: 5px; font-size: 0.85rem; color: #666;">{ "machine_code": "M001" }</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>注意事项</h2>
+                </div>
+                <div class="card-body">
+                    <ul style="line-height: 2; color: #666;">
+                        <li>默认管理员账号：admin / 123456（首次登录后请修改密码）</li>
+                        <li>客户配置中的AppID和AppSecret请妥善保管</li>
+                        <li>机器编号在出厂时设定，请勿随意修改</li>
+                        <li>如需技术支持，请联系开发者</li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

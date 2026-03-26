@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器管理 - HI拿管理系统</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-gush">GUSH</span>
+                    <span class="logo-app">HI拿</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/customers" class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    <span>客户管理</span>
+                </a>
+                <a href="/codes" class="nav-item">
+                    <span class="nav-icon">🎫</span>
+                    <span>兑换码</span>
+                </a>
+                <a href="/machines" class="nav-item active">
+                    <span class="nav-icon">📱</span>
+                    <span>机器管理</span>
+                </a>
+                <a href="/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>用户记录</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+                <a href="/logout" class="logout-btn">退出</a>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>机器管理</h1>
+            </header>
+
+            <div class="dashboard-card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>机器编号</th>
+                            <th>名称</th>
+                            <th>位置</th>
+                            <th>状态</th>
+                            <th>最后心跳</th>
+                        </tr>
+                    </thead>
+                    <tbody id="machineList">
+                        <tr><td colspan="5" class="empty-data"><p>加载中...</p></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function loadMachines() {
+            fetch('/api/machines')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        renderMachines(data.data);
+                    }
+                });
+        }
+
+        function renderMachines(machines) {
+            const tbody = document.getElementById('machineList');
+            if (machines.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-data"><p>暂无机器，请联系管理员添加</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = machines.map(m => {
+                const statusMap = {
+                    'online': '<span class="status-badge status-online">在线</span>',
+                    'offline': '<span class="status-badge status-offline">离线</span>'
+                };
+                return `
+                    <tr>
+                        <td style="font-weight: 600;">${m.machine_code}</td>
+                        <td>${m.name || '-'}</td>
+                        <td>${m.location || '-'}</td>
+                        <td>${statusMap[m.status] || m.status}</td>
+                        <td>${m.last_heartbeat || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        loadMachines();
+    </script>
+</body>
+</html>

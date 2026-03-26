@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户记录 - HI拿管理系统</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-gush">GUSH</span>
+                    <span class="logo-app">HI拿</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/customers" class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    <span>客户管理</span>
+                </a>
+                <a href="/codes" class="nav-item">
+                    <span class="nav-icon">🎫</span>
+                    <span>兑换码</span>
+                </a>
+                <a href="/machines" class="nav-item">
+                    <span class="nav-icon">📱</span>
+                    <span>机器管理</span>
+                </a>
+                <a href="/users" class="nav-item active">
+                    <span class="nav-icon">👥</span>
+                    <span>用户记录</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+                <a href="/logout" class="logout-btn">退出</a>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>用户记录</h1>
+            </header>
+
+            <div class="dashboard-card">
+                <div class="card-body">
+                    <div class="empty-data">
+                        <p style="font-size: 2rem; margin-bottom: 15px;">👥</p>
+                        <p>用户数据将在小程序上线后显示</p>
+                        <p style="font-size: 0.85rem; color: #999; margin-top: 10px;">
+                            小程序用户领取记录将同步显示在此处
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

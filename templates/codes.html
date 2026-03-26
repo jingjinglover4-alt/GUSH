@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兑换码管理 - HI拿管理系统</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-gush">GUSH</span>
+                    <span class="logo-app">HI拿</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/customers" class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    <span>客户管理</span>
+                </a>
+                <a href="/codes" class="nav-item active">
+                    <span class="nav-icon">🎫</span>
+                    <span>兑换码</span>
+                </a>
+                <a href="/machines" class="nav-item">
+                    <span class="nav-icon">📱</span>
+                    <span>机器管理</span>
+                </a>
+                <a href="/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>用户记录</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+                <a href="/logout" class="logout-btn">退出</a>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>兑换码管理</h1>
+            </header>
+
+            <div class="toolbar">
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input type="text" id="searchKeyword" placeholder="搜索兑换码">
+                </div>
+                <div>
+                    <select id="statusFilter" class="form-input" style="width: 120px; padding: 8px 12px;">
+                        <option value="">全部状态</option>
+                        <option value="pending">未使用</option>
+                        <option value="used">已使用</option>
+                        <option value="expired">已过期</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadCodes()">刷新</button>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>兑换码</th>
+                            <th>状态</th>
+                            <th>OpenID</th>
+                            <th>生成时间</th>
+                            <th>过期时间</th>
+                            <th>使用时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="codeList">
+                        <tr><td colspan="6" class="empty-data"><p>加载中...</p></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </main>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const limit = 20;
+
+        function loadCodes(page = 1) {
+            currentPage = page;
+            const status = document.getElementById('statusFilter').value;
+            const keyword = document.getElementById('searchKeyword').value;
+
+            let url = `/api/codes?page=${page}&limit=${limit}`;
+            if (status) url += `&status=${status}`;
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        renderCodes(data.data);
+                        renderPagination(data.total);
+                    }
+                });
+        }
+
+        function renderCodes(codes) {
+            const tbody = document.getElementById('codeList');
+            if (codes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-data"><p>暂无数据</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = codes.map(c => {
+                const statusMap = {
+                    'pending': '<span class="status-badge status-pending">未使用</span>',
+                    'used': '<span class="status-badge status-used">已使用</span>',
+                    'expired': '<span class="status-badge status-expired">已过期</span>'
+                };
+                return `
+                    <tr>
+                        <td style="font-weight: 600; letter-spacing: 2px; color: #C41E3A;">${c.code}</td>
+                        <td>${statusMap[c.status] || c.status}</td>
+                        <td style="font-size: 0.8rem; color: #999;">${c.openid || '-'}</td>
+                        <td>${c.created_at}</td>
+                        <td>${c.expired_at || '-'}</td>
+                        <td>${c.used_at || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderPagination(total) {
+            const totalPages = Math.ceil(total / limit);
+            const container = document.getElementById('pagination');
+
+            let html = '';
+            if (currentPage > 1) {
+                html += `<button onclick="loadCodes(${currentPage - 1})">上一页</button>`;
+            }
+            html += `<span style="padding: 8px 15px;">第 ${currentPage} / ${totalPages} 页</span>`;
+            if (currentPage < totalPages) {
+                html += `<button onclick="loadCodes(${currentPage + 1})">下一页</button>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // 搜索和筛选
+        document.getElementById('statusFilter').addEventListener('change', () => loadCodes(1));
+        document.getElementById('searchKeyword').addEventListener('input', () => loadCodes(1));
+
+        // 初始加载
+        loadCodes();
+    </script>
+</body>
+</html>

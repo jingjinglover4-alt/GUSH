@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表盘 - HI拿管理系统</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-gush">GUSH</span>
+                    <span class="logo-app">HI拿</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item active">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/customers" class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    <span>客户管理</span>
+                </a>
+                <a href="/codes" class="nav-item">
+                    <span class="nav-icon">🎫</span>
+                    <span>兑换码</span>
+                </a>
+                <a href="/machines" class="nav-item">
+                    <span class="nav-icon">📱</span>
+                    <span>机器管理</span>
+                </a>
+                <a href="/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>用户记录</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+                <a href="/logout" class="logout-btn">退出</a>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>数据概览</h1>
+                <div class="header-time" id="currentTime"></div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">🎫</div>
+                    <div class="stat-info">
+                        <div class="stat-value">{{ total_codes }}</div>
+                        <div class="stat-label">生成码数</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">✓</div>
+                    <div class="stat-info">
+                        <div class="stat-value">{{ used_codes }}</div>
+                        <div class="stat-label">已核销</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">👤</div>
+                    <div class="stat-info">
+                        <div class="stat-value">{{ total_users }}</div>
+                        <div class="stat-label">领取用户</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">📱</div>
+                    <div class="stat-info">
+                        <div class="stat-value">{{ active_machines }}</div>
+                        <div class="stat-label">在线机器</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 今日数据 -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>今日概况</h2>
+                </div>
+                <div class="card-body">
+                    {% if today_stats %}
+                    <div class="today-stats">
+                        <div class="today-item">
+                            <div class="today-value">{{ today_stats.scan_count }}</div>
+                            <div class="today-label">扫码次数</div>
+                        </div>
+                        <div class="today-item">
+                            <div class="today-value">{{ today_stats.claim_count }}</div>
+                            <div class="today-label">领取次数</div>
+                        </div>
+                        <div class="today-item">
+                            <div class="today-value">{{ today_stats.redeem_count }}</div>
+                            <div class="today-label">核销次数</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-data">
+                        <p>暂无今日数据</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 快捷操作 -->
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>快捷操作</h2>
+                </div>
+                <div class="card-body">
+                    <div class="quick-actions">
+                        <button class="action-btn" onclick="location.href='/codes'">
+                            <span>📋</span> 管理兑换码
+                        </button>
+                        <button class="action-btn" onclick="location.href='/customers'">
+                            <span>🏢</span> 配置客户
+                        </button>
+                        <button class="action-btn" onclick="location.href='/machines'">
+                            <span>📱</span> 管理机器
+                        </button>
+                        <button class="action-btn" onclick="location.href='/settings'">
+                            <span>⚙️</span> 系统设置
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 显示当前时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('zh-CN');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>

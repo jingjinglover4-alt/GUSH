@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户管理 - HI拿管理系统</title>
+    <link rel="stylesheet" href="/admin/static/css/admin.css">
+    <style>
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .config-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .config-item:hover {
+            border-color: #C41E3A;
+        }
+
+        .config-item img {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+
+        .config-item-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .config-item-status {
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1.2rem;
+        }
+
+        .modal-close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .form-section {
+            margin-bottom: 25px;
+        }
+
+        .form-section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #C41E3A;
+        }
+
+        .image-preview {
+            width: 100%;
+            max-width: 200px;
+            height: 120px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .image-preview span {
+            color: #999;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-gush">GUSH</span>
+                    <span class="logo-app">HI拿</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>仪表盘</span>
+                </a>
+                <a href="/customers" class="nav-item active">
+                    <span class="nav-icon">🏢</span>
+                    <span>客户管理</span>
+                </a>
+                <a href="/codes" class="nav-item">
+                    <span class="nav-icon">🎫</span>
+                    <span>兑换码</span>
+                </a>
+                <a href="/machines" class="nav-item">
+                    <span class="nav-icon">📱</span>
+                    <span>机器管理</span>
+                </a>
+                <a href="/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>用户记录</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>系统设置</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+                <a href="/admin/logout" class="logout-btn">退出</a>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1>客户管理</h1>
+            </header>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2>客户配置</h2>
+                </div>
+                <div class="card-body">
+                    <div class="config-grid" id="customerList">
+                        <!-- 动态加载 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编辑弹窗 -->
+            <div class="modal" id="editModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>编辑客户配置</h3>
+                        <span class="modal-close" onclick="closeModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <form id="customerForm">
+                            <input type="hidden" id="customerId">
+
+                            <div class="form-section">
+                                <div class="form-section-title">基本信息</div>
+                                <div class="form-group">
+                                    <label class="form-label">客户名称</label>
+                                    <input type="text" class="form-input" id="name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">应用名称</label>
+                                    <input type="text" class="form-input" id="app_name" placeholder="如：HI拿">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">广告语</label>
+                                    <input type="text" class="form-input" id="slogan" placeholder="智能派样 · 精准触达 · 品效合一">
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="form-section-title">素材配置</div>
+                                <div class="form-group">
+                                    <label class="form-label">Logo URL</label>
+                                    <input type="text" class="form-input" id="logo_url" placeholder="https://...">
+                                    <div class="image-preview" id="logoPreview"><span>暂无预览</span></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">背景图 URL</label>
+                                    <input type="text" class="form-input" id="bg_image_url" placeholder="https://...">
+                                    <div class="image-preview" id="bgPreview"><span>暂无预览</span></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">二维码 URL</label>
+                                    <input type="text" class="form-input" id="qrcode_url" placeholder="https://...">
+                                    <div class="image-preview" id="qrcodePreview"><span>暂无预览</span></div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="form-section-title">公众号配置</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">AppID</label>
+                                        <input type="text" class="form-input" id="wx_appid">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">AppSecret</label>
+                                        <input type="text" class="form-input" id="wx_appsecret">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="form-section-title">小程序配置</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">AppID</label>
+                                        <input type="text" class="form-input" id="mp_appid">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">AppSecret</label>
+                                        <input type="text" class="form-input" id="mp_appsecret">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="form-section-title">企业微信配置</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">企业ID</label>
+                                        <input type="text" class="form-input" id="ww_corpid">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">应用AgentID</label>
+                                        <input type="text" class="form-input" id="ww_agentid">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">应用Secret</label>
+                                    <input type="text" class="form-input" id="ww_secret">
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="form-section-title">兑换码设置</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">有效期（秒）</label>
+                                        <input type="number" class="form-input" id="code_expire_seconds" value="60">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">码长度</label>
+                                        <input type="number" class="form-input" id="code_length" value="6">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="text-align: center; margin-top: 25px;">
+                                <button type="button" class="btn btn-primary" onclick="saveCustomer()" style="padding: 12px 50px;">保存配置</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 加载客户列表
+        function loadCustomers() {
+            fetch('/admin/admin/api/customers')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        renderCustomers(data.data);
+                    }
+                });
+        }
+
+        function renderCustomers(customers) {
+            const container = document.getElementById('customerList');
+            container.innerHTML = customers.map(c => `
+                <div class="config-item" onclick="editCustomer(${c.id})">
+                    ${c.logo_url ? `<img src="${c.logo_url}" alt="logo">` : '<div style="width:60px;height:60px;background:#eee;border-radius:8px;margin-bottom:10px;"></div>'}
+                    <div class="config-item-name">${c.name}</div>
+                    <div class="config-item-status">
+                        <span class="status-badge ${c.status === 'active' ? 'status-active' : 'status-frozen'}">${c.status === 'active' ? '运行中' : '已冻结'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editCustomer(id) {
+            fetch('/admin/admin/api/customer/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const c = data.data;
+                        document.getElementById('customerId').value = c.id;
+                        document.getElementById('name').value = c.name;
+                        document.getElementById('app_name').value = c.app_name || '';
+                        document.getElementById('slogan').value = c.slogan || '';
+                        document.getElementById('logo_url').value = c.logo_url || '';
+                        document.getElementById('bg_image_url').value = c.bg_image_url || '';
+                        document.getElementById('qrcode_url').value = c.qrcode_url || '';
+                        document.getElementById('wx_appid').value = c.wx_appid || '';
+                        document.getElementById('mp_appid').value = c.mp_appid || '';
+                        document.getElementById('ww_corpid').value = c.ww_corpid || '';
+                        document.getElementById('ww_agentid').value = c.ww_agentid || '';
+                        document.getElementById('code_expire_seconds').value = c.code_expire_seconds || 60;
+                        document.getElementById('code_length').value = c.code_length || 6;
+
+                        updatePreview('logo', c.logo_url);
+                        updatePreview('bg', c.bg_image_url);
+                        updatePreview('qrcode', c.qrcode_url);
+
+                        document.getElementById('editModal').classList.add('show');
+                    }
+                });
+        }
+
+        function updatePreview(type, url) {
+            const el = document.getElementById(type + 'Preview');
+            if (url) {
+                el.innerHTML = `<img src="${url}" alt="preview">`;
+            } else {
+                el.innerHTML = '<span>暂无预览</span>';
+            }
+        }
+
+        function saveCustomer() {
+            const id = document.getElementById('customerId').value;
+            const data = {
+                name: document.getElementById('name').value,
+                app_name: document.getElementById('app_name').value,
+                slogan: document.getElementById('slogan').value,
+                logo_url: document.getElementById('logo_url').value,
+                bg_image_url: document.getElementById('bg_image_url').value,
+                qrcode_url: document.getElementById('qrcode_url').value,
+                wx_appid: document.getElementById('wx_appid').value,
+                mp_appid: document.getElementById('mp_appid').value,
+                ww_corpid: document.getElementById('ww_corpid').value,
+                ww_agentid: document.getElementById('ww_agentid').value,
+                code_expire_seconds: parseInt(document.getElementById('code_expire_seconds').value),
+                code_length: parseInt(document.getElementById('code_length').value)
+            };
+
+            fetch('/admin/admin/api/customer/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    alert('保存成功');
+                    closeModal();
+                    loadCustomers();
+                } else {
+                    alert('保存失败');
+                }
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('show');
+        }
+
+        // 图片预览
+        document.getElementById('logo_url').addEventListener('input', function() {
+            updatePreview('logo', this.value);
+        });
+        document.getElementById('bg_image_url').addEventListener('input', function() {
+            updatePreview('bg', this.value);
+        });
+        document.getElementById('qrcode_url').addEventListener('input', function() {
+            updatePreview('qrcode', this.value);
+        });
+
+        // 初始加载
+        loadCustomers();
+    </script>
+</body>
+</html>

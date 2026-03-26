@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HI拿 - 智能派样管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-main {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 4px;
+            text-shadow: 0 0 30px rgba(196, 30, 58, 0.5);
+        }
+
+        .logo-sub {
+            font-size: 1.5rem;
+            color: #C41E3A;
+            font-weight: 600;
+            margin-top: 5px;
+            letter-spacing: 8px;
+        }
+
+        .logo-divider {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #C41E3A, transparent);
+            margin: 15px auto;
+        }
+
+        .logo-tagline {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 2px;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px 35px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-title {
+            font-size: 1.3rem;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px 18px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            font-size: 1rem;
+            color: #fff;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .form-input:focus {
+            border-color: #C41E3A;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.2);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #C41E3A 0%, #a01830 100%);
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 3px;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(196, 30, 58, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-msg {
+            color: #ff6b6b;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 15px;
+            min-height: 20px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.8rem;
+        }
+
+        .footer span {
+            color: #C41E3A;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-section">
+            <div class="logo-main">GUSH</div>
+            <div class="logo-sub">HI拿</div>
+            <div class="logo-divider"></div>
+            <div class="logo-tagline">智能派样管理系统</div>
+        </div>
+
+        <div class="login-card">
+            <div class="login-title">管理员登录</div>
+
+            <div class="form-group">
+                <label class="form-label">账号</label>
+                <input type="text" class="form-input" id="username" placeholder="请输入管理员账号" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" class="form-input" id="password" placeholder="请输入密码">
+            </div>
+
+            <button class="login-btn" id="loginBtn" onclick="doLogin()">登 录</button>
+
+            <div class="error-msg" id="errorMsg"></div>
+        </div>
+
+        <div class="footer">
+            <span>GUSH</span> 高效传媒 © 2026
+        </div>
+    </div>
+
+    <script>
+        // 回车登录
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                doLogin();
+            }
+        });
+
+        function doLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!username || !password) {
+                errorMsg.textContent = '请输入账号和密码';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+            errorMsg.textContent = '';
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/dashboard';
+                } else {
+                    errorMsg.textContent = data.message || '登录失败';
+                    btn.disabled = false;
+                    btn.textContent = '登 录';
+                }
+            })
+            .catch(err => {
+                errorMsg.textContent = '网络错误，请重试';
+                btn.disabled = false;
+                btn.textContent = '登 录';
+            });
+        }
+    </script>
+</body>
+</html>
