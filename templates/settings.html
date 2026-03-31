@@ -4,115 +4,432 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>系统设置 - HI拿管理系统</title>
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/admin/static/css/admin.css">
+    <style>
+        .page-header {
+            margin-bottom: 25px;
+        }
+        .page-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        .page-subtitle {
+            font-size: 0.9rem;
+            color: #999;
+            margin-top: 5px;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .settings-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        .settings-card.full-width {
+            grid-column: span 2;
+        }
+        .settings-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .settings-card h3 .icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.1rem;
+        }
+        .settings-card h3 .icon.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .settings-card h3 .icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .settings-card h3 .icon.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+        .settings-row .label {
+            font-weight: 500;
+            color: #333;
+        }
+        .settings-row .value {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .settings-row .badge {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #fff;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .settings-row .badge.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .btn-edit {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-edit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .api-doc {
+            background: #1e1e2e;
+            border-radius: 12px;
+            padding: 20px;
+            color: #cdd6f4;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .api-doc .endpoint {
+            margin-bottom: 20px;
+        }
+        .api-doc .method {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .api-doc .method.post { background: #89b4fa; color: #1e1e2e; }
+        .api-doc .method.get { background: #a6e3a1; color: #1e1e2e; }
+        .api-doc .method.delete { background: #f38ba8; color: #1e1e2e; }
+        .api-doc .url {
+            color: #89dceb;
+            font-size: 0.9rem;
+        }
+        .api-doc .code {
+            background: #313244;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #cdd6f4;
+            overflow-x: auto;
+        }
+        .api-doc .note {
+            color: #a6adc8;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+        .version-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: #fff;
+            margin-top: 20px;
+        }
+        .version-info .logo {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .version-info .text {
+            flex: 1;
+        }
+        .version-info .name {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .version-info .ver {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+    
+        /* ===== 深色主题覆盖 ===== */
+        body { background: #0f172a !important; color: #f8fafc !important; margin: 0 !important; padding-top: 0 !important; }
+        .admin-layout { display: flex !important; min-height: 100vh !important; padding-top: 0 !important; margin-top: 0 !important; }
+        .sidebar { background: #1e293b !important; border-right: 1px solid #334155 !important; width: 240px !important; position: fixed !important; top: 0 !important; height: 100vh !important; }
+        .main-content { margin-left: 240px !important; background: #0f172a !important; padding: 30px !important; margin-top: 0 !important; padding-top: 30px !important; flex: 1 !important; }
+        .sidebar-header { border-bottom: 1px solid #334155 !important; }
+        .logo-gush { color: #6366f1 !important; }
+        .logo-app { color: #f8fafc !important; }
+        .logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex !important; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #fff; }
+        .logo-brand { display: flex !important; align-items: center; gap: 10px; }
+        .logo-text .brand { font-size: 1.1rem; font-weight: 700; color: #f8fafc !important; }
+        .logo-text .sub { font-size: 0.7rem; color: #94a3b8 !important; }
+        .sidebar-logo { padding: 24px 20px !important; border-bottom: 1px solid #334155 !important; }
+        .sidebar-nav { background: transparent !important; padding: 16px 12px !important; display: flex !important; flex-direction: column; gap: 4px !important; }
+        .nav-item { color: #94a3b8 !important; border-radius: 10px !important; padding: 11px 14px !important; display: flex !important; align-items: center; gap: 12px; text-decoration: none !important; transition: all 0.2s !important; font-size: 0.9rem; font-weight: 500; border: 1px solid transparent !important; }
+        .nav-item:hover { background: #334155 !important; color: #f8fafc !important; }
+        .nav-item.active { background: rgba(99,102,241,0.15) !important; color: #6366f1 !important; border-color: rgba(99,102,241,0.3) !important; }
+        .nav-icon { font-size: 1rem !important; width: 20px; text-align: center; }
+        .sidebar-footer { border-top: 1px solid #334155 !important; background: transparent !important; padding: 16px 20px !important; display: flex !important; align-items: center; justify-content: space-between; }
+        .admin-info { display: flex !important; align-items: center; gap: 10px; }
+        .admin-avatar { width: 32px !important; height: 32px !important; border-radius: 50% !important; background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; display: flex !important; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: #fff !important; }
+        .admin-name { color: #f8fafc !important; font-size: 0.85rem; }
+        .logout-btn { color: #94a3b8 !important; border: 1px solid #334155 !important; border-radius: 6px !important; padding: 5px 10px !important; font-size: 0.75rem !important; }
+        .logout-btn:hover { color: #ef4444 !important; border-color: #ef4444 !important; }
+        .page-title { color: #f8fafc !important; }
+        .page-subtitle { color: #94a3b8 !important; }
+        .table-container, .table-card { background: #1e293b !important; border: 1px solid #334155 !important; border-radius: 16px !important; }
+        .table-header { border-bottom: 1px solid #334155 !important; }
+        .table-title { color: #f8fafc !important; }
+        .data-table th { background: rgba(255,255,255,0.02) !important; color: #94a3b8 !important; border-bottom: 1px solid #334155 !important; }
+        .data-table td { border-bottom: 1px solid rgba(51,65,85,0.5) !important; color: #e2e8f0 !important; }
+        .data-table tr:hover td { background: rgba(255,255,255,0.02) !important; }
+        .machine-code { color: #6366f1 !important; }
+        .location-text, .user-openid, .time-tag, .heartbeat-time { color: #94a3b8 !important; }
+        .action-btn { background: rgba(99,102,241,0.1) !important; color: #6366f1 !important; border: 1px solid rgba(99,102,241,0.3) !important; border-radius: 6px !important; padding: 6px 12px !important; cursor: pointer; font-size: 0.8rem; }
+        .action-btn.danger { background: rgba(239,68,68,0.1) !important; color: #f87171 !important; border-color: rgba(239,68,68,0.3) !important; }
+        .btn-add { background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 10px !important; cursor: pointer; font-weight: 500; display: flex !important; align-items: center; gap: 8px; }
+        .modal { background: rgba(0,0,0,0.7) !important; }
+        .modal-content { background: #1e293b !important; border: 1px solid #334155 !important; border-radius: 16px !important; }
+        .modal-header { border-bottom: 1px solid #334155 !important; }
+        .modal-header h3 { color: #f8fafc !important; }
+        .modal-close { color: #94a3b8 !important; background: none; border: none; cursor: pointer; font-size: 1.3rem; }
+        input[type="text"], input[type="number"], input[type="password"], select, textarea { background: #0f172a !important; border: 1px solid #334155 !important; color: #f8fafc !important; border-radius: 8px !important; padding: 8px 12px !important; }
+        input:focus, select:focus, textarea:focus { border-color: #6366f1 !important; outline: none !important; }
+        label { color: #94a3b8 !important; }
+        .settings-card { background: #1e293b !important; border: 1px solid #334155 !important; border-radius: 16px !important; }
+        .settings-card h3 { color: #f8fafc !important; border-bottom-color: #334155 !important; }
+        .settings-row { border-bottom-color: rgba(51,65,85,0.5) !important; }
+        .settings-row .label { color: #e2e8f0 !important; }
+        .settings-row .value { color: #94a3b8 !important; }
+        .code { background: #0f172a !important; color: #10b981 !important; border: 1px solid #334155 !important; font-family: monospace; padding: 12px !important; border-radius: 8px !important; }
+        .user-avatar { background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; }
+        .user-name { color: #f8fafc !important; }
+        .version-info { background: #1e293b !important; border: 1px solid #334155 !important; }
+        .version-info .logo { background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; }
+        .version-info .name { color: #f8fafc !important; }
+        .version-info .ver { color: #94a3b8 !important; }
+        .endpoint { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 8px !important; padding: 12px !important; margin-bottom: 12px; }
+        .method.get { background: rgba(16,185,129,0.15) !important; color: #34d399 !important; }
+        .method.post { background: rgba(99,102,241,0.15) !important; color: #818cf8 !important; }
+        .url { color: #06b6d4 !important; font-family: monospace; }
+        .note { color: #94a3b8 !important; }
+        .status-dot { display: inline-block !important; }
+        .online .status-dot { background: #10b981 !important; }
+        .offline .status-dot { background: #ef4444 !important; }
+        .status-online { color: #34d399 !important; }
+        .status-offline { color: #f87171 !important; }
+        .filter-group input, .filter-group select { background: #1e293b !important; border-color: #334155 !important; color: #f8fafc !important; }
+        .page-btn, .prev-btn, .next-btn { background: transparent !important; border: 1px solid #334155 !important; color: #94a3b8 !important; border-radius: 8px !important; padding: 7px 14px !important; cursor: pointer; }
+        .page-btn:hover { background: #334155 !important; color: #f8fafc !important; }
+
+    </style>
 </head>
-<body>
+<body style="margin: 0 !important; padding: 0 !important; background: #0f172a !important;">
     <div class="admin-layout">
         <!-- 侧边栏 -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <span class="logo-gush">GUSH</span>
-                    <span class="logo-app">HI拿</span>
+            <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-brand">
+                <div class="logo-icon">HI</div>
+                <div class="logo-text">
+                    <div class="brand">GUSH HI拿</div>
+                    <div class="sub">智能派样 SaaS</div>
                 </div>
             </div>
-
-            <nav class="sidebar-nav">
-                <a href="/dashboard" class="nav-item">
-                    <span class="nav-icon">📊</span>
-                    <span>仪表盘</span>
-                </a>
-                <a href="/customers" class="nav-item">
-                    <span class="nav-icon">🏢</span>
-                    <span>客户管理</span>
-                </a>
-                <a href="/codes" class="nav-item">
-                    <span class="nav-icon">🎫</span>
-                    <span>兑换码</span>
-                </a>
-                <a href="/machines" class="nav-item">
-                    <span class="nav-icon">📱</span>
-                    <span>机器管理</span>
-                </a>
-                <a href="/users" class="nav-item">
-                    <span class="nav-icon">👥</span>
-                    <span>用户记录</span>
-                </a>
-                <a href="/settings" class="nav-item active">
-                    <span class="nav-icon">⚙️</span>
-                    <span>系统设置</span>
-                </a>
-            </nav>
-
-            <div class="sidebar-footer">
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item"><span class="nav-icon">📊</span><span>仪表盘</span></a>
+            <a href="/admin/customers" class="nav-item"><span class="nav-icon">🏢</span><span>客户管理</span></a>
+            <a href="/admin/codes" class="nav-item"><span class="nav-icon">🎫</span><span>兑换码</span></a>
+            <a href="/admin/machines" class="nav-item"><span class="nav-icon">📱</span><span>机器管理</span></a>
+            <a href="/admin/users" class="nav-item"><span class="nav-icon">👥</span><span>用户记录</span></a>
+            <a href="/admin/content" class="nav-item"><span class="nav-icon">🎨</span><span>内容管理</span></a>
+            <a href="/admin/settings" class="nav-item active"><span class="nav-icon">⚙️</span><span>系统设置</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="admin-info">
+                <div class="admin-avatar">A</div>
                 <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
-                <a href="/logout" class="logout-btn">退出</a>
             </div>
-        </aside>
+            <a href="/admin/logout" class="logout-btn">退出</a>
+        </div>
+    </aside>
 
         <!-- 主内容 -->
         <main class="main-content">
-            <header class="content-header">
-                <h1>系统设置</h1>
-            </header>
-
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h2>系统信息</h2>
-                </div>
-                <div class="card-body">
-                    <table class="data-table" style="max-width: 500px;">
-                        <tr>
-                            <td style="width: 150px; color: #666;">系统名称</td>
-                            <td>HI拿智能派样SaaS系统</td>
-                        </tr>
-                        <tr>
-                            <td style="color: #666;">版本</td>
-                            <td>v1.0.0</td>
-                        </tr>
-                        <tr>
-                            <td style="color: #666;">开发者</td>
-                            <td>GUSH 高效传媒</td>
-                        </tr>
-                        <tr>
-                            <td style="color: #666;">技术支持</td>
-                            <td>WorkBuddy AI</td>
-                        </tr>
-                    </table>
-                </div>
+            <div class="page-header">
+                <h1 class="page-title">系统设置</h1>
+                <p class="page-subtitle">管理账户信息、查看系统状态和接口文档</p>
             </div>
 
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h2>接口文档</h2>
+            <div class="settings-grid">
+                <!-- 账户信息 -->
+                <div class="settings-card">
+                    <h3><span class="icon">👤</span> 账户信息</h3>
+                    <div class="settings-row">
+                        <span class="label">用户名</span>
+                        <span class="value">{{ session.get('admin_name', 'admin') }}</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">角色</span>
+                        <span class="badge">管理员</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">登录时间</span>
+                        <span class="value" id="loginTime">-</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">操作</span>
+                        <button class="btn-edit" onclick="changePassword()">修改密码</button>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; font-family: monospace;">
-                        <p style="margin-bottom: 15px;"><strong>机器端验证接口：</strong></p>
-                        <p style="margin-bottom: 5px;">POST /api/redeem/verify</p>
-                        <p style="margin-bottom: 15px; font-size: 0.85rem; color: #666;">{ "code": "123456", "machine_code": "M001" }</p>
 
-                        <p style="margin-bottom: 15px;"><strong>机器心跳接口：</strong></p>
-                        <p style="margin-bottom: 5px;">POST /api/machine/heartbeat</p>
-                        <p style="margin-bottom: 5px; font-size: 0.85rem; color: #666;">{ "machine_code": "M001" }</p>
+                <!-- 系统信息 -->
+                <div class="settings-card">
+                    <h3><span class="icon green">🖥️</span> 系统信息</h3>
+                    <div class="settings-row">
+                        <span class="label">系统版本</span>
+                        <span class="badge">v1.0.0</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">数据库</span>
+                        <span class="value">SQLite 3</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">服务器时间</span>
+                        <span class="value" id="serverTime">-</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">运行时长</span>
+                        <span class="value" id="uptime">-</span>
+                    </div>
+                </div>
+
+                <!-- 接口文档 -->
+                <div class="settings-card full-width">
+                    <h3><span class="icon blue">📡</span> 机器端接口文档</h3>
+                    
+                    <div class="api-doc">
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="url">/admin/api/redeem/verify</span>
+                            <p class="note">机器验证兑换码并获取发货指令</p>
+                            <div class="code">{
+  "code": "123456",
+  "machine_code": "M001"
+}
+
+// 成功响应:
+{
+  "success": true,
+  "message": "验证成功",
+  "action": "dispense"
+}</div>
+                        </div>
+                        
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="url">/admin/api/machine/heartbeat</span>
+                            <p class="note">机器定期发送心跳，保持在线状态</p>
+                            <div class="code">{
+  "machine_code": "M001"
+}
+
+// 成功响应:
+{
+  "success": true,
+  "message": "心跳成功"
+}</div>
+                        </div>
+                        
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="url">/admin/api/code/generate</span>
+                            <p class="note">小程序端生成兑换码（需用户认证）</p>
+                            <div class="code">{
+  "openid": "oXXXXXX"
+}
+
+// 响应:
+{
+  "success": true,
+  "code": "847291",
+  "expired_at": "2026-03-24 23:59:00"
+}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 注意事项 -->
+                <div class="settings-card full-width">
+                    <h3><span class="icon orange">⚠️</span> 注意事项</h3>
+                    <div class="settings-row">
+                        <span class="label">默认密码</span>
+                        <span class="value">首次登录后请立即修改 admin / 123456</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">API密钥</span>
+                        <span class="value">微信公众号和小程序配置信息请妥善保管</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">机器编号</span>
+                        <span class="value">机器编号在出厂时设定，请勿随意修改</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="label">技术支持</span>
+                        <span class="value">如遇问题请联系 GUSH 高效传媒</span>
                     </div>
                 </div>
             </div>
 
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h2>注意事项</h2>
-                </div>
-                <div class="card-body">
-                    <ul style="line-height: 2; color: #666;">
-                        <li>默认管理员账号：admin / 123456（首次登录后请修改密码）</li>
-                        <li>客户配置中的AppID和AppSecret请妥善保管</li>
-                        <li>机器编号在出厂时设定，请勿随意修改</li>
-                        <li>如需技术支持，请联系开发者</li>
-                    </ul>
+            <!-- 版本信息 -->
+            <div class="version-info">
+                <div class="logo">HI</div>
+                <div class="text">
+                    <div class="name">HI拿智能派样SaaS系统</div>
+                    <div class="ver">Powered by GUSH 高效传媒 | WorkBuddy AI</div>
                 </div>
             </div>
         </main>
     </div>
+
+    <script>
+        // 显示当前时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('serverTime').textContent = now.toLocaleString('zh-CN');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // 模拟登录时间和运行时长
+        document.getElementById('loginTime').textContent = new Date().toLocaleString('zh-CN');
+        document.getElementById('uptime').textContent = '运行正常';
+
+        function changePassword() {
+            alert('修改密码功能开发中');
+        }
+    </script>
 </body>
 </html>

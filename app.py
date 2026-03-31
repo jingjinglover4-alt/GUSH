@@ -2,15 +2,17 @@
 """
 HI拿智能派样SaaS管理系统 - Flask后端
 """
+import json
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import hashlib
+from werkzeug.security import generate_password_hash, check_password_hash
 import random
 import string
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/admin/static')
 app.config['SECRET_KEY'] = 'hinana-secret-key-2026'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///hinana.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -24,7 +26,7 @@ ADMIN_PREFIX = '/admin'
 
 class Admin(db.Model):
     """管理员账号"""
-    __tablename__ = 'admins'
+    __tablename__ = 'admin_users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
@@ -36,7 +38,7 @@ class Admin(db.Model):
         self.password_hash = hashlib.sha256(password.encode()).hexdigest()
 
     def check_password(self, password):
-        return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
+        return check_password_hash(self.password_hash, password)
 
 
 class Customer(db.Model):
@@ -90,6 +92,7 @@ class RedeemCode(db.Model):
     expired_at = db.Column(db.DateTime)  # 过期时间
     used_at = db.Column(db.DateTime)  # 使用时间
     used_machine_id = db.Column(db.Integer)  # 使用时的机器ID
+    user_phone = db.Column(db.String(20))  # 用户手机号
 
 
 class UserRecord(db.Model):
@@ -117,6 +120,55 @@ class Machine(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
     status = db.Column(db.String(20), default='online')  # online, offline
     last_heartbeat = db.Column(db.DateTime)  # 最后心跳时间
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    # 4G设备信息
+    imei = db.Column(db.String(20))  # 4G模块IMEI
+    sim_no = db.Column(db.String(20))  # SIM卡号
+    firmware_version = db.Column(db.String(50))  # 固件版本
+    # 位置信息
+    latitude = db.Column(db.Float)  # 纬度
+    longitude = db.Column(db.Float)  # 经度
+    location_address = db.Column(db.Text)  # 地址描述
+    last_location_update = db.Column(db.DateTime)  # 最后位置更新时间
+
+
+class Channel(db.Model):
+    """货道配置"""
+    __tablename__ = 'channels'
+    id = db.Column(db.Integer, primary_key=True)
+    machine_id = db.Column(db.Integer, db.ForeignKey('machines.id'), nullable=False)
+    channel_no = db.Column(db.Integer, nullable=False)  # 货道编号 0-59
+    product_name = db.Column(db.String(100), default='')
+    product_image = db.Column(db.String(255), default='')
+    max_qty = db.Column(db.Integer, default=50)
+    unit_price = db.Column(db.Float, default=0)
+    low_stock_threshold = db.Column(db.Integer, default=10)
+    status = db.Column(db.String(20), default='normal')  # normal, disabled
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class Inventory(db.Model):
+    """货道实时库存"""
+    __tablename__ = 'inventory'
+    id = db.Column(db.Integer, primary_key=True)
+    channel_id = db.Column(db.Integer, db.ForeignKey('channels.id'), nullable=False, unique=True)
+    current_qty = db.Column(db.Integer, default=0)
+    last_updated = db.Column(db.DateTime, default=datetime.now)
+
+
+class ReplenishmentLog(db.Model):
+    """补货记录"""
+    __tablename__ = 'replenishment_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    channel_id = db.Column(db.Integer, db.ForeignKey('channels.id'), nullable=False)
+    operator_id = db.Column(db.Integer, db.ForeignKey('admin_users.id'))
+    operator_name = db.Column(db.String(50), default='')
+    before_qty = db.Column(db.Integer, default=0)
+    after_qty = db.Column(db.Integer, default=0)
+    quantity_added = db.Column(db.Integer, default=0)
+    method = db.Column(db.String(20), default='manual')  # manual, device
+    notes = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 
@@ -356,6 +408,122 @@ def api_update_customer(cid):
     return jsonify({'success': True, 'message': '更新成功'})
 
 
+@app.route(f'{ADMIN_PREFIX}/api/customer', methods=['POST'])
+def api_create_customer():
+    """新增客户"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    data = request.get_json()
+    if not data or not data.get('name'):
+        return jsonify({'success': False, 'message': '客户名称不能为空'})
+
+    # 检查名称是否重复
+    if Customer.query.filter_by(name=data['name']).first():
+        return jsonify({'success': False, 'message': '客户名称已存在'})
+
+    customer = Customer(
+        name=data['name'],
+        app_name=data.get('app_name', ''),
+        slogan=data.get('slogan', ''),
+        logo_url=data.get('logo_url', ''),
+        bg_image_url=data.get('bg_image_url', ''),
+        qrcode_url=data.get('qrcode_url', ''),
+        wx_appid=data.get('wx_appid', ''),
+        wx_appsecret=data.get('wx_appsecret', ''),
+        mp_appid=data.get('mp_appid', ''),
+        mp_appsecret=data.get('mp_appsecret', ''),
+        ww_corpid=data.get('ww_corpid', ''),
+        ww_agentid=data.get('ww_agentid', ''),
+        ww_secret=data.get('ww_secret', ''),
+        code_expire_seconds=data.get('code_expire_seconds', 60),
+        code_length=data.get('code_length', 6),
+        status=data.get('status', 'active')
+    )
+
+    db.session.add(customer)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '创建成功', 'data': {'id': customer.id}})
+
+
+@app.route(f'{ADMIN_PREFIX}/api/customer/<int:cid>', methods=['DELETE'])
+def api_delete_customer(cid):
+    """删除客户"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    customer = Customer.query.get(cid)
+    if not customer:
+        return jsonify({'success': False, 'message': '客户不存在'})
+
+    # 检查是否有关联数据
+    if customer.machines:
+        return jsonify({'success': False, 'message': '该客户有关联机器，请先删除机器'})
+
+    db.session.delete(customer)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '删除成功'})
+
+
+@app.route(f'{ADMIN_PREFIX}/api/customer/<int:cid>/toggle-status', methods=['PUT'])
+def api_toggle_customer_status(cid):
+    """切换客户状态（冻结/解冻）"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    customer = Customer.query.get(cid)
+    if not customer:
+        return jsonify({'success': False, 'message': '客户不存在'})
+
+    customer.status = 'frozen' if customer.status == 'active' else 'active'
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': '已解冻' if customer.status == 'active' else '已冻结',
+        'data': {'status': customer.status}
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/customer-stats', methods=['GET'])
+def api_customer_stats():
+    """获取客户统计"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    total = Customer.query.count()
+    active = Customer.query.filter_by(status='active').count()
+    frozen = Customer.query.filter_by(status='frozen').count()
+
+    # 各客户的派样数统计
+    stats = db.session.query(
+        Customer.id,
+        Customer.name,
+        Customer.status,
+        db.func.count(RedeemCode.id).label('code_count')
+    ).outerjoin(RedeemCode, Customer.id == RedeemCode.customer_id
+    ).group_by(Customer.id).all()
+
+    customer_stats = [{
+        'id': s.id,
+        'name': s.name,
+        'status': s.status,
+        'code_count': s.code_count
+    } for s in stats]
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'total': total,
+            'active': active,
+            'frozen': frozen,
+            'customers': customer_stats
+        }
+    })
+
+
 @app.route(f'{ADMIN_PREFIX}/api/codes', methods=['GET'])
 def api_get_codes():
     """获取兑换码列表"""
@@ -384,11 +552,38 @@ def api_get_codes():
             'id': c.id,
             'code': c.code,
             'status': c.status,
+            'phone': c.user_phone,
             'openid': c.openid,
             'created_at': c.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             'expired_at': c.expired_at.strftime('%Y-%m-%d %H:%M:%S') if c.expired_at else '',
             'used_at': c.used_at.strftime('%Y-%m-%d %H:%M:%S') if c.used_at else ''
         } for c in codes]
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/codes/delete', methods=['POST'])
+def api_delete_codes():
+    """删除兑换码（物理删除）"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    data = request.get_json()
+    phone_numbers = data.get('phone_numbers', [])
+
+    if not phone_numbers:
+        return jsonify({'success': False, 'message': '请选择要删除的记录'})
+
+    # 物理删除
+    deleted_count = RedeemCode.query.filter(
+        RedeemCode.phone.in_(phone_numbers)
+    ).delete(synchronize_session=False)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'已删除 {deleted_count} 条记录',
+        'deleted_count': deleted_count
     })
 
 
@@ -414,8 +609,232 @@ def api_get_machines():
             'name': m.name,
             'location': m.location,
             'status': m.status,
+            'imei': m.imei or '',
+            'sim_no': m.sim_no or '',
+            'firmware_version': m.firmware_version or '',
             'last_heartbeat': m.last_heartbeat.strftime('%Y-%m-%d %H:%M:%S') if m.last_heartbeat else ''
         } for m in machines]
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/machine/<int:machine_id>/device-info', methods=['GET'])
+def api_get_machine_device_info(machine_id):
+    """获取机器设备信息"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    machine = Machine.query.get(machine_id)
+    if not machine:
+        return jsonify({'success': False, 'message': '机器不存在'})
+
+    return jsonify({
+        'success': True,
+        'imei': machine.imei or '',
+        'sim_no': machine.sim_no or '',
+        'firmware_version': machine.firmware_version or ''
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/machine/<int:machine_id>/device-info', methods=['PUT'])
+def api_update_machine_device_info(machine_id):
+    """更新机器设备信息"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    machine = Machine.query.get(machine_id)
+    if not machine:
+        return jsonify({'success': False, 'message': '机器不存在'})
+
+    data = request.get_json()
+    machine.imei = data.get('imei', '')
+    machine.sim_no = data.get('sim_no', '')
+    machine.firmware_version = data.get('firmware_version', '')
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': '保存成功',
+        'imei': machine.imei,
+        'sim_no': machine.sim_no,
+        'firmware_version': machine.firmware_version
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/machine/<int:machine_id>/channels', methods=['GET'])
+def api_get_machine_channels(machine_id):
+    """获取机器货道列表"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    machine = Machine.query.get(machine_id)
+    if not machine:
+        return jsonify({'success': False, 'message': '机器不存在'})
+
+    channels = Channel.query.filter_by(machine_id=machine_id).all()
+    # 按货道名称排序 (A0, A1... A9, B0...)
+    def sort_key(x):
+        # "A0" -> (0, 0), "B5" -> (1, 5)
+        if x.channel_no and len(x.channel_no) >= 2:
+            row = ord(x.channel_no[0].upper()) - ord('A')
+            col = int(x.channel_no[1]) if x.channel_no[1].isdigit() else 0
+            return (row, col)
+        return (0, 0)
+    channels.sort(key=sort_key)
+
+    # 获取库存信息
+    channel_ids = [ch.id for ch in channels]
+    inventory_map = {}
+    if channel_ids:
+        inv_records = Inventory.query.filter(Inventory.channel_id.in_(channel_ids)).all()
+        inventory_map = {inv.channel_id: inv.current_qty for inv in inv_records}
+
+    return jsonify({
+        'success': True,
+        'data': [{
+            'id': ch.id,
+            'channel_no': ch.channel_no,
+            'product_name': ch.product_name,
+            'product_image': ch.product_image,
+            'max_qty': ch.max_qty,
+            'current_qty': inventory_map.get(ch.id, 0),
+            'unit_price': ch.unit_price,
+            'low_stock_threshold': ch.low_stock_threshold,
+            'status': ch.status
+        } for ch in channels]
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/channel/<int:channel_id>', methods=['PUT'])
+def api_update_channel(channel_id):
+    """更新货道配置"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    channel = Channel.query.get(channel_id)
+    if not channel:
+        return jsonify({'success': False, 'message': '货道不存在'})
+
+    data = request.get_json()
+    channel.product_name = data.get('product_name', channel.product_name)
+    channel.product_image = data.get('product_image', channel.product_image)
+    channel.max_qty = data.get('max_qty', channel.max_qty)
+    channel.unit_price = data.get('unit_price', channel.unit_price)
+    channel.low_stock_threshold = data.get('low_stock_threshold', channel.low_stock_threshold)
+    channel.status = data.get('status', channel.status)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': '更新成功'})
+
+
+@app.route(f'{ADMIN_PREFIX}/api/channel/<int:channel_id>/replenish', methods=['POST'])
+def api_channel_replenish(channel_id):
+    """货道补货"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    channel = Channel.query.get(channel_id)
+    if not channel:
+        return jsonify({'success': False, 'message': '货道不存在'})
+
+    data = request.get_json()
+    add_qty = data.get('quantity', 0)
+    notes = data.get('notes', '')
+
+    if add_qty <= 0:
+        return jsonify({'success': False, 'message': '补货数量必须大于0'})
+
+    # 获取或创建库存记录
+    inv = Inventory.query.filter_by(channel_id=channel_id).first()
+    before_qty = inv.current_qty if inv else 0
+
+    if inv:
+        inv.current_qty = min(inv.current_qty + add_qty, channel.max_qty)
+    else:
+        inv = Inventory(channel_id=channel_id, current_qty=min(add_qty, channel.max_qty))
+        db.session.add(inv)
+
+    after_qty = inv.current_qty
+
+    # 记录日志
+    log = ReplenishmentLog(
+        channel_id=channel_id,
+        operator_id=session.get('admin_id'),
+        operator_name=session.get('username', '未知'),
+        before_qty=before_qty,
+        after_qty=after_qty,
+        quantity_added=after_qty - before_qty,
+        method='manual',
+        notes=notes
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'补货成功，当前库存：{after_qty}',
+        'before_qty': before_qty,
+        'after_qty': after_qty
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/channel/<int:channel_id>/inventory', methods=['PUT'])
+def api_set_channel_inventory(channel_id):
+    """设置货道库存"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    channel = Channel.query.get(channel_id)
+    if not channel:
+        return jsonify({'success': False, 'message': '货道不存在'})
+
+    data = request.get_json()
+    new_qty = max(0, min(data.get('current_qty', 0), channel.max_qty))
+
+    inv = Inventory.query.filter_by(channel_id=channel_id).first()
+    before_qty = inv.current_qty if inv else 0
+
+    if inv:
+        inv.current_qty = new_qty
+        inv.last_updated = datetime.now()
+    else:
+        inv = Inventory(channel_id=channel_id, current_qty=new_qty)
+        db.session.add(inv)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'before_qty': before_qty,
+        'current_qty': new_qty
+    })
+
+
+@app.route(f'{ADMIN_PREFIX}/api/channel/<int:channel_id>/logs', methods=['GET'])
+def api_channel_logs(channel_id):
+    """获取货道补货记录"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+
+    channel = Channel.query.get(channel_id)
+    if not channel:
+        return jsonify({'success': False, 'message': '货道不存在'})
+
+    logs = ReplenishmentLog.query.filter_by(channel_id=channel_id).order_by(
+        ReplenishmentLog.created_at.desc()
+    ).limit(50).all()
+
+    return jsonify({
+        'success': True,
+        'data': [{
+            'id': log.id,
+            'operator_name': log.operator_name,
+            'before_qty': log.before_qty,
+            'after_qty': log.after_qty,
+            'quantity_added': log.quantity_added,
+            'method': log.method,
+            'notes': log.notes,
+            'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else ''
+        } for log in logs]
     })
 
 
@@ -482,6 +901,7 @@ def api_verify_code():
     redeem_code.status = 'used'
     redeem_code.used_at = datetime.now()
     redeem_code.used_machine_id = machine.id
+    user_phone = db.Column(db.String(20))  # 用户手机号
     db.session.commit()
 
     # 更新统计数据
@@ -517,8 +937,88 @@ def api_machine_heartbeat():
     return jsonify({'success': False, 'message': '机器未注册'})
 
 
+# ==================== 用户API ====================
+
+@app.route(f'{ADMIN_PREFIX}/api/users', methods=['GET'])
+def api_users():
+    """获取用户列表"""
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 20))
+    keyword = request.args.get('keyword', '')
+    
+    query = db.session.query(
+        RedeemCode.openid,
+        db.func.count(RedeemCode.id).label('claim_count'),
+        db.func.sum(db.cast(RedeemCode.status == 'used', db.Integer)).label('redeem_count'),
+        db.func.max(RedeemCode.created_at).label('last_claim_at')
+    ).group_by(RedeemCode.openid)
+    
+    if keyword:
+        query = query.filter(RedeemCode.openid.like(f'%{keyword}%'))
+    
+    total = query.count()
+    users = query.offset((page - 1) * limit).limit(limit).all()
+    
+    return jsonify({
+        'success': True,
+        'data': [{
+            'openid': u.openid,
+            'claim_count': u.claim_count,
+            'redeem_count': u.redeem_count or 0,
+            'last_claim_at': u.last_claim_at.strftime('%Y-%m-%d %H:%M') if u.last_claim_at else None
+        } for u in users],
+        'total': total,
+        'total_claims': RedeemCode.query.count(),
+        'total_redeems': RedeemCode.query.filter_by(status='used').count()
+    })
+
+# ============ 内容管理 API ============
+@app.route(f"{ADMIN_PREFIX}/content")
+def content_page():
+    return render_template("content.html")
+
+@app.route(f"{ADMIN_PREFIX}/api/content/config")
+def get_content_config():
+    try:
+        # 使用原生SQL获取配置
+        result = db.session.execute(db.text("SELECT section, config FROM content_config"))
+        config = {}
+        for row in result:
+            section, cfg_json = row[0], row[1]
+            config[section] = json.loads(cfg_json) if cfg_json else {}
+        return jsonify({"success": True, "config": config})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route(f"{ADMIN_PREFIX}/api/content/save", methods=["POST"])
+def save_content_config():
+    try:
+        data = request.get_json()
+        section = data.get("section")
+        config = data.get("config", {})
+        if not section:
+            return jsonify({"success": False, "error": "缺少section参数"}), 400
+        config_json = json.dumps(config, ensure_ascii=False)
+        # SQLite UPSERT
+        db.session.execute(
+            db.text("""
+                INSERT INTO content_config (section, config, updated_at) 
+                VALUES (:section, :config, datetime('now')) 
+                ON CONFLICT(section) DO UPDATE SET config = :config, updated_at = datetime('now')
+            """),
+            {"section": section, "config": config_json}
+        )
+        db.session.commit()
+        return jsonify({"success": True, "message": "保存成功"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # ==================== 启动 ====================
 
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5001, debug=True)
+
+

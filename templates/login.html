@@ -222,7 +222,7 @@
             btn.textContent = '登录中...';
             errorMsg.textContent = '';
 
-            fetch('/login', {
+            fetch('/admin/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({username, password})
@@ -230,7 +230,7 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = '/dashboard';
+                    window.location.href = '/admin/dashboard';
                 } else {
                     errorMsg.textContent = data.message || '登录失败';
                     btn.disabled = false;

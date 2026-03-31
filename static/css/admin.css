@@ -500,3 +500,214 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* 机器管理页面专用 */
+.machine-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.machine-stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 25px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+.machine-stat-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+}
+
+.machine-stat-card.green {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.machine-stat-card.orange {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.machine-stat-card.blue {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.machine-stat-card .stat-num {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.machine-stat-card .stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.machine-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.machine-detail-item {
+    background: #fff;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+}
+
+.machine-detail-item .label {
+    font-size: 0.8rem;
+    color: #999;
+    margin-bottom: 5px;
+}
+
+.machine-detail-item .value {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+/* 用户记录页面专用 */
+.user-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.user-stat-card {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    border-radius: 16px;
+    padding: 25px;
+    color: #fff;
+}
+
+.user-stat-card.blue {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+}
+
+.user-stat-card.purple {
+    background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+}
+
+.user-stat-card.teal {
+    background: linear-gradient(135deg, #0fd850 0%, #f9f047 100%);
+}
+
+/* 设置页面专用 */
+.settings-section {
+    background: #fff;
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.settings-section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-section h3 .icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1rem;
+}
+
+.settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.settings-row:last-child {
+    border-bottom: none;
+}
+
+.settings-row .label {
+    font-weight: 500;
+    color: #333;
+}
+
+.settings-row .value {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.settings-row .badge {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
+
+/* API文档样式 */
+.api-doc {
+    background: #1e1e2e;
+    border-radius: 12px;
+    padding: 20px;
+    color: #cdd6f4;
+    font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.api-doc .endpoint {
+    margin-bottom: 20px;
+}
+
+.api-doc .method {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.api-doc .method.post {
+    background: #89b4fa;
+    color: #1e1e2e;
+}
+
+.api-doc .method.get {
+    background: #a6e3a1;
+    color: #1e1e2e;
+}
+
+.api-doc .url {
+    color: #89dceb;
+}
+
+.api-doc .code {
+    background: #313244;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #cdd6f4;
+}

@@ -4,112 +4,864 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>机器管理 - HI拿管理系统</title>
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <style>
+        /* ===== 全局重置与布局 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex;
+            min-height: 100vh;
+        }
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            width: 240px; min-height: 100vh; background: #1e293b;
+            border-right: 1px solid #334155; display: flex; flex-direction: column;
+            position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+        }
+        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid #334155; }
+        .logo-brand { display: flex; align-items: center; gap: 10px; }
+        .logo-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; color: #fff;
+        }
+        .logo-text .brand { font-size: 1.1rem; font-weight: 700; color: #f8fafc; }
+        .logo-text .sub { font-size: 0.7rem; color: #94a3b8; margin-top: 1px; }
+        .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+            border-radius: 10px; text-decoration: none; color: #94a3b8;
+            font-size: 0.9rem; font-weight: 500; transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .nav-item:hover { background: #334155; color: #f8fafc; }
+        .nav-item.active { background: rgba(99,102,241,0.15); color: #6366f1; border-color: rgba(99,102,241,0.3); }
+        .sidebar-footer {
+            padding: 16px 20px; border-top: 1px solid #334155;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .admin-info { display: flex; align-items: center; gap: 10px; }
+        .admin-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 700; color: #fff;
+        }
+        .admin-name { font-size: 0.85rem; font-weight: 500; color: #f8fafc; }
+        .logout-btn {
+            font-size: 0.75rem; color: #94a3b8; text-decoration: none;
+            padding: 5px 10px; border-radius: 6px; border: 1px solid #334155;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover { color: #ef4444; border-color: #ef4444; }
+        /* ===== 主内容 ===== */
+        .main-content { margin-left: 240px; flex: 1; padding: 30px; min-height: 100vh; background: #0f172a; }
+
+        /* 深色科技风变量 */
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        body { background: var(--bg-primary); color: var(--text-primary); margin: 0; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .page-title { font-size: 1.6rem; font-weight: 600; color: var(--text-primary); }
+        .page-subtitle { font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px; }
+        .btn-add {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-add:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4); }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 25px; }
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .stat-icon.total { background: rgba(99, 102, 241, 0.2); }
+        .stat-icon.online { background: rgba(16, 185, 129, 0.2); }
+        .stat-icon.warning { background: rgba(245, 158, 11, 0.2); }
+        .stat-icon.critical { background: rgba(239, 68, 68, 0.2); }
+        .stat-info { flex: 1; }
+        .stat-num { font-size: 1.8rem; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
+        .table-container { background: var(--bg-secondary); border-radius: 16px; border: 1px solid var(--border-color); overflow: hidden; }
+        .table-header { padding: 20px 25px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .table-title { font-weight: 600; color: var(--text-primary); }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { background: rgba(0,0,0,0.2); padding: 15px 20px; text-align: left; font-weight: 600; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-table td { padding: 18px 20px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+        .data-table tr:hover td { background: rgba(99, 102, 241, 0.05); }
+        .machine-code { font-weight: 700; color: var(--accent); font-size: 1rem; letter-spacing: 1px; }
+        .location-text { color: var(--text-secondary); font-size: 0.9rem; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 500; }
+        .status-badge.online { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .status-badge.offline { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .status-badge.active { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .status-badge.frozen { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .action-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 0.85rem; transition: all 0.2s; margin-right: 4px; }
+        .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .action-btn.inventory { border-color: var(--success); color: var(--success); }
+        .action-btn.inventory:hover { background: var(--success); color: #fff; }
+        .action-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+        .filter-select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); outline: none; cursor: pointer; }
+        .empty-state { text-align: center; padding: 60px 20px; }
+        .empty-icon { font-size: 4rem; margin-bottom: 20px; opacity: 0.3; }
+        .empty-text { color: var(--text-secondary); font-size: 1rem; margin-bottom: 10px; }
+
+        /* 弹窗样式 */
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 30px; width: 600px; max-width: 95%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .modal-title { font-size: 1.3rem; font-weight: 600; color: var(--text-primary); }
+        .modal-close { background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        .modal-close:hover { color: var(--text-primary); }
+        .form-group { margin-bottom: 18px; }
+        .form-label { display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px; }
+        .form-input { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); font-size: 0.95rem; box-sizing: border-box; }
+        .form-input:focus { outline: none; border-color: var(--accent); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .btn-cancel { padding: 10px 20px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+        .btn-cancel:hover { border-color: var(--text-primary); color: var(--text-primary); }
+        .btn-submit { padding: 10px 24px; border: none; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; font-weight: 500; }
+        .btn-submit:hover { background: var(--accent-hover); }
+
+        /* 货道网格矩阵 - 6行布局 */
+        .channel-matrix-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px 16px; background: var(--bg-primary); border-radius: 10px; border: 1px solid var(--border-color); }
+        .channel-matrix-title { font-weight: 600; color: var(--text-primary); }
+        .btn-fill-all { padding: 8px 16px; border: none; border-radius: 8px; background: linear-gradient(135deg, #10b981, #34d399); color: #fff; cursor: pointer; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; }
+        .btn-fill-all:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        
+        .channel-matrix { display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; }
+        .channel-cell { 
+            aspect-ratio: 1; 
+            background: var(--bg-primary); 
+            border: 2px solid var(--border-color); 
+            border-radius: 8px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            padding: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .channel-cell:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .channel-cell.high { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .channel-cell.medium { border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .channel-cell.low { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .channel-cell .ch-no { font-weight: 700; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 4px; }
+        .channel-cell .ch-progress { width: 80%; height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden; }
+        .channel-cell .ch-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .channel-cell.high .ch-fill { background: #10b981; }
+        .channel-cell.medium .ch-fill { background: #f59e0b; }
+        .channel-cell.low .ch-fill { background: #ef4444; }
+        .channel-cell .ch-qty { font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; }
+        
+        /* 响应式调整 */
+        @media (max-width: 1200px) {
+            .channel-matrix { grid-template-columns: repeat(6, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .channel-matrix { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        /* 设备信息 */
+        .device-info { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+        .device-info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+        .device-info-row:last-child { border-bottom: none; }
+        .device-label { color: var(--text-secondary); font-size: 0.85rem; }
+        .device-value { color: var(--text-primary); font-size: 0.85rem; font-weight: 500; }
+
+        /* 提示消息 */
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: #fff; font-size: 0.9rem; z-index: 2000; opacity: 0; transform: translateY(20px); transition: all 0.3s; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        /* Tab切换 */
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+        .tab { padding: 10px 20px; border: none; background: none; color: var(--text-secondary); cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab:hover { color: var(--text-primary); }
+
+        /* 补货弹窗 */
+        .replenish-form { display: flex; gap: 10px; align-items: center; }
+        .replenish-form input { width: 100px; }
+    </style>
 </head>
 <body>
-    <div class="admin-layout">
+    <div class="admin-layout" style="display: flex; min-height: 100vh;">
         <!-- 侧边栏 -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="logo">
-                    <span class="logo-gush">GUSH</span>
-                    <span class="logo-app">HI拿</span>
+                <div class="logo-brand">
+                    <div class="logo-icon">HI</div>
+                    <div class="logo-text">
+                        <div class="brand">GUSH HI拿</div>
+                        <div class="sub">智能派样 SaaS</div>
+                    </div>
                 </div>
             </div>
-
             <nav class="sidebar-nav">
-                <a href="/dashboard" class="nav-item">
-                    <span class="nav-icon">📊</span>
-                    <span>仪表盘</span>
+                <a href="/admin/dashboard" class="nav-item">
+                    <span>📊</span><span>仪表盘</span>
                 </a>
-                <a href="/customers" class="nav-item">
-                    <span class="nav-icon">🏢</span>
-                    <span>客户管理</span>
+                <a href="/admin/customers" class="nav-item">
+                    <span>🏢</span><span>客户管理</span>
                 </a>
-                <a href="/codes" class="nav-item">
-                    <span class="nav-icon">🎫</span>
-                    <span>兑换码</span>
+                <a href="/admin/codes" class="nav-item">
+                    <span>🎫</span><span>兑换码</span>
                 </a>
-                <a href="/machines" class="nav-item active">
-                    <span class="nav-icon">📱</span>
-                    <span>机器管理</span>
+                <a href="/admin/machines" class="nav-item active">
+                    <span>📱</span><span>机器管理</span>
                 </a>
-                <a href="/users" class="nav-item">
-                    <span class="nav-icon">👥</span>
-                    <span>用户记录</span>
+                <a href="/admin/users" class="nav-item">
+                    <span>👥</span><span>用户记录</span>
                 </a>
-                <a href="/settings" class="nav-item">
-                    <span class="nav-icon">⚙️</span>
-                    <span>系统设置</span>
+                <a href="/admin/content" class="nav-item">
+                    <span>🎨</span><span>内容管理</span>
+                </a>
+                <a href="/admin/settings" class="nav-item">
+                    <span>⚙️</span><span>系统设置</span>
                 </a>
             </nav>
-
             <div class="sidebar-footer">
-                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
-                <a href="/logout" class="logout-btn">退出</a>
+                <div class="admin-info">
+                    <div class="admin-avatar">A</div>
+                    <span class="admin-name">Admin</span>
+                </div>
+                <a href="/admin/logout" class="logout-btn">退出</a>
             </div>
         </aside>
 
         <!-- 主内容 -->
         <main class="main-content">
-            <header class="content-header">
-                <h1>机器管理</h1>
-            </header>
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">机器管理</h1>
+                    <p class="page-subtitle">管理派样机设备、监控货道库存、进行补货操作</p>
+                </div>
+                <button class="btn-add" onclick="showAddModal()">
+                    <span>+</span> 添加机器
+                </button>
+            </div>
 
-            <div class="dashboard-card">
+            <!-- 库存统计 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon total">📱</div>
+                    <div class="stat-info">
+                        <div class="stat-num" id="totalCount">-</div>
+                        <div class="stat-label">全部机器</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon online">✅</div>
+                    <div class="stat-info">
+                        <div class="stat-num" id="onlineCount">-</div>
+                        <div class="stat-label">在线机器</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon warning">⚠️</div>
+                    <div class="stat-info">
+                        <div class="stat-num" id="lowStockCount">-</div>
+                        <div class="stat-label">低库存货道设备</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon critical">🚨</div>
+                    <div class="stat-info">
+                        <div class="stat-num" id="emptyCount">-</div>
+                        <div class="stat-label">售罄货道设备</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据表格 -->
+            <div class="table-container">
+                <div class="table-header">
+                    <span class="table-title">设备列表</span>
+                    <div class="filter-group">
+                        <select class="filter-select" id="statusFilter" onchange="loadMachines()">
+                            <option value="">全部状态</option>
+                            <option value="active">运行中</option>
+                            <option value="frozen">已冻结</option>
+                        </select>
+                    </div>
+                </div>
                 <table class="data-table">
                     <thead>
                         <tr>
                             <th>机器编号</th>
                             <th>名称</th>
+                            <th>所属客户</th>
                             <th>位置</th>
                             <th>状态</th>
+                            <th>货道</th>
+                            <th>库存</th>
                             <th>最后心跳</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="machineList">
-                        <tr><td colspan="5" class="empty-data"><p>加载中...</p></td></tr>
+                        <tr><td colspan="9" class="empty-state"><div class="empty-icon">📱</div><div class="empty-text">加载中...</div></td></tr>
                     </tbody>
                 </table>
             </div>
         </main>
     </div>
 
+    <!-- 添加机器弹窗 -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">添加新机器</h2>
+                <button class="modal-close" onclick="closeAddModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">机器编号 *</label>
+                <input type="text" id="machineCode" class="form-input" placeholder="如: HN-001">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">机器名称</label>
+                    <input type="text" id="machineName" class="form-input" placeholder="如: 总部大厅机器">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">安装位置</label>
+                    <input type="text" id="machineLocation" class="form-input" placeholder="如: 深圳市南山区">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">所属客户</label>
+                <select id="customerSelect" class="form-input">
+                    <option value="">请选择客户</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">4G模块IMEI</label>
+                    <input type="text" id="machineImei" class="form-input" placeholder="设备IMEI号">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">SIM卡号</label>
+                    <input type="text" id="machineSim" class="form-input" placeholder="SIM卡号">
+                </div>
+            </div>
+            <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 15px;">
+                💡 添加机器时会自动创建4个默认货道，每个货道初始库存为30件。
+            </p>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeAddModal()">取消</button>
+                <button class="btn-submit" onclick="addMachine()">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 货道管理弹窗 -->
+    <div id="channelModal" class="modal">
+        <div class="modal-content" style="width: 800px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="channelModalTitle">货道管理</h2>
+                <button class="modal-close" onclick="closeChannelModal()">&times;</button>
+            </div>
+            
+            <!-- 设备信息 -->
+            <div class="device-info" id="deviceInfo">
+                <div class="device-info-row">
+                    <span class="device-label">机器编号</span>
+                    <span class="device-value" id="infoCode">-</span>
+                </div>
+                <div class="device-info-row">
+                    <span class="device-label">IMEI</span>
+                    <span class="device-value" id="infoImei">-</span>
+                </div>
+                <div class="device-info-row">
+                    <span class="device-label">SIM卡号</span>
+                    <span class="device-value" id="infoSim">-</span>
+                </div>
+                <div class="device-info-row">
+                    <span class="device-label">固件版本</span>
+                    <span class="device-value" id="infoFirmware">-</span>
+                </div>
+                <div class="device-info-row">
+                    <span class="device-label">最后库存上报</span>
+                    <span class="device-value" id="infoLastReport">-</span>
+                </div>
+            </div>
+
+            <!-- Tab切换 -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('channels')">货道库存</button>
+                <button class="tab" onclick="switchTab('device')">设备信息</button>
+                <button class="tab" onclick="switchTab('logs')">补货记录</button>
+            </div>
+
+            <!-- 货道列表 -->
+            <div id="channelsTab">
+                <div class="channel-matrix-header">
+                    <span class="channel-matrix-title">货道布局</span>
+                    <button class="btn-fill-all" onclick="fillAllChannels()">一键补满</button>
+                </div>
+                <div class="channel-matrix" id="channelGrid">
+                    <!-- 货道格子动态生成 -->
+                </div>
+            </div>
+
+            <!-- 设备信息表单 -->
+            <div id="deviceTab" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">IMEI</label>
+                    <input type="text" id="editImei" class="form-input" placeholder="4G模块IMEI">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">SIM卡号</label>
+                    <input type="text" id="editSim" class="form-input" placeholder="SIM卡号">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">固件版本</label>
+                    <input type="text" id="editFirmware" class="form-input" placeholder="如: v1.2.3">
+                </div>
+                <button class="btn-submit" onclick="saveDeviceInfo()">保存设备信息</button>
+            </div>
+
+            <!-- 补货记录 -->
+            <div id="logsTab" style="display: none;">
+                <div id="logsList" style="max-height: 300px; overflow-y: auto;">
+                    <!-- 记录动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 补货弹窗 -->
+    <div id="replenishModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2 class="modal-title">补货操作</h2>
+                <button class="modal-close" onclick="closeReplenishModal()">&times;</button>
+            </div>
+            <div id="replenishChannelInfo" style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <!-- 动态填充 -->
+            </div>
+            <div class="form-group">
+                <label class="form-label">补货数量</label>
+                <input type="number" id="replenishQty" class="form-input" value="50" min="1" max="200">
+            </div>
+            <div class="form-group">
+                <label class="form-label">备注（可选）</label>
+                <input type="text" id="replenishNotes" class="form-input" placeholder="如: 补充库存">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeReplenishModal()">取消</button>
+                <button class="btn-submit" onclick="confirmReplenish()">确认补货</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+
     <script>
+        let currentMachineId = null;
+        let currentChannelId = null;
+        let currentChannels = [];
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // 判断在线/离线状态（供统计和渲染共用）
+        function getOnlineStatus(heartbeat, inventoryReport) {
+            const now = Date.now();
+            const HB_TIMEOUT = 5 * 60 * 1000;  // 心跳超时5分钟
+            const INV_TIMEOUT = 10 * 60 * 1000; // 库存上报超时10分钟
+            
+            const hbTime = heartbeat ? new Date(heartbeat.replace(' ', 'T')).getTime() : 0;
+            const invTime = inventoryReport ? new Date(inventoryReport.replace(' ', 'T')).getTime() : 0;
+            
+            const hbOnline = (now - hbTime) < HB_TIMEOUT;
+            const invOnline = (now - invTime) < INV_TIMEOUT;
+            
+            // 在线：心跳+库存上报都在线
+            return hbOnline && invOnline;
+        }
+
         function loadMachines() {
-            fetch('/api/machines')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        renderMachines(data.data);
-                    }
-                });
+            fetch('/admin/api/machines').then(r => r.json()).then(data => {
+                if (data.success) {
+                    renderMachines(data.data);
+                    // 更新统计
+                    document.getElementById('totalCount').textContent = data.data.length;
+                    const online = data.data.filter(m => getOnlineStatus(m.last_heartbeat, m.last_inventory_report)).length;
+                    document.getElementById('onlineCount').textContent = online;
+                }
+            });
+            
+            // 加载库存统计
+            fetch('/admin/api/inventory/all-stats').then(r => r.json()).then(data => {
+                if (data.success) {
+                    document.getElementById('lowStockCount').textContent = data.data.low_stock_machines;
+                    document.getElementById('emptyCount').textContent = data.data.empty_machines;
+                }
+            });
         }
 
         function renderMachines(machines) {
             const tbody = document.getElementById('machineList');
             if (machines.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-data"><p>暂无机器，请联系管理员添加</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📱</div><div class="empty-text">暂无机器数据</div></div></td></tr>';
                 return;
             }
-
+            
             tbody.innerHTML = machines.map(m => {
-                const statusMap = {
-                    'online': '<span class="status-badge status-online">在线</span>',
-                    'offline': '<span class="status-badge status-offline">离线</span>'
-                };
-                return `
-                    <tr>
-                        <td style="font-weight: 600;">${m.machine_code}</td>
-                        <td>${m.name || '-'}</td>
-                        <td>${m.location || '-'}</td>
-                        <td>${statusMap[m.status] || m.status}</td>
-                        <td>${m.last_heartbeat || '-'}</td>
-                    </tr>
-                `;
+                const isOnline = getOnlineStatus(m.last_heartbeat, m.last_inventory_report);
+                const onlineClass = isOnline ? 'online' : 'offline';
+                const onlineText = isOnline ? '在线' : '离线';
+                return '<tr>' +
+                    '<td><span class="machine-code">' + m.machine_code + '</span></td>' +
+                    '<td>' + (m.name || '-') + '</td>' +
+                    '<td>' + (m.customer_name || '-') + '</td>' +
+                    '<td><span class="location-text">' + (m.location || '-') + '</span></td>' +
+                    '<td><span class="status-badge ' + onlineClass + '">' + onlineText + '</span></td>' +
+                    '<td><span style="color: #6366f1;">' + (m.available_channels || 0) + '/' + (m.channel_count || 0) + '</span></td>' +
+                    '<td><span style="color: #22c55e; font-weight: bold;">' + (m.total_qty || 0) + '/' + (m.max_capacity || 0) + '</span></td>' +
+                    '<td><span class="location-text">' + (m.last_heartbeat || '-') + '</span></td>' +
+                    '<td>' +
+                        '<button class="action-btn inventory" onclick="openChannelModal(' + m.id + ', \'' + m.machine_code + '\')">货道</button>' +
+                        '<button class="action-btn" onclick="editMachine(\'' + m.machine_code + '\')">编辑</button>' +
+                        '<button class="action-btn danger" onclick="deleteMachine(\'' + m.machine_code + '\')">删除</button>' +
+                    '</td>' +
+                    '</tr>';
             }).join('');
         }
 
+        function showAddModal() {
+            document.getElementById('addModal').classList.add('active');
+            fetch('/admin/api/customers').then(r => r.json()).then(data => {
+                if (data.success) {
+                    const select = document.getElementById('customerSelect');
+                    select.innerHTML = '<option value="">请选择客户</option>' + 
+                        data.data.map(c => '<option value="' + c.id + '">' + c.name + '</option>').join('');
+                }
+            });
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.remove('active');
+        }
+
+        function addMachine() {
+            const machine_code = document.getElementById('machineCode').value.trim();
+            const name = document.getElementById('machineName').value.trim();
+            const location = document.getElementById('machineLocation').value.trim();
+            const customer_id = document.getElementById('customerSelect').value;
+            const imei = document.getElementById('machineImei').value.trim();
+            const sim_no = document.getElementById('machineSim').value.trim();
+
+            if (!machine_code) {
+                showToast('请输入机器编号', 'error');
+                return;
+            }
+
+            fetch('/admin/api/machines', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ machine_code, name, location, customer_id, imei, sim_no })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    closeAddModal();
+                    loadMachines();
+                    showToast('添加成功！已自动创建4个货道');
+                    // 清空表单
+                    document.getElementById('machineCode').value = '';
+                    document.getElementById('machineName').value = '';
+                    document.getElementById('machineLocation').value = '';
+                    document.getElementById('machineImei').value = '';
+                    document.getElementById('machineSim').value = '';
+                } else {
+                    showToast(data.error || '添加失败', 'error');
+                }
+            });
+        }
+
+        function editMachine(code) {
+            showToast('编辑功能开发中', 'error');
+        }
+
+        function deleteMachine(code) {
+            if (confirm('确定要删除机器 ' + code + ' 吗？\n注意：这将删除该机器的所有货道和库存数据。')) {
+                fetch('/admin/api/machines/' + code, { method: 'DELETE' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            loadMachines();
+                            showToast('删除成功');
+                        } else {
+                            showToast(data.error || '删除失败', 'error');
+                        }
+                    });
+            }
+        }
+
+        // ========== 货道管理 ==========
+        function openChannelModal(machineId, machineCode) {
+            currentMachineId = machineId;
+            document.getElementById('channelModalTitle').textContent = '货道管理 - ' + machineCode;
+            document.getElementById('channelModal').classList.add('active');
+            
+            // 加载机器信息
+            fetch('/admin/api/machines').then(r => r.json()).then(data => {
+                if (data.success) {
+                    const machine = data.data.find(m => m.id === machineId);
+                    if (machine) {
+                        document.getElementById('infoCode').textContent = machine.machine_code;
+                        document.getElementById('infoImei').textContent = machine.imei || '未设置';
+                        document.getElementById('infoSim').textContent = machine.sim_no || '未设置';
+                        document.getElementById('infoFirmware').textContent = machine.firmware_version || '未知';
+                        document.getElementById('infoLastReport').textContent = machine.last_inventory_report || '暂无';
+                        
+                        document.getElementById('editImei').value = machine.imei || '';
+                        document.getElementById('editSim').value = machine.sim_no || '';
+                        document.getElementById('editFirmware').value = machine.firmware_version || '';
+                    }
+                }
+            });
+
+            // 加载货道数据
+            loadChannels(machineId);
+        }
+
+        function loadChannels(machineId) {
+            fetch('/admin/api/machine/' + machineId + '/channels').then(r => r.json()).then(data => {
+                if (data.success) {
+                    currentChannels = data.data;
+                    renderChannels(data.data);
+                }
+            });
+        }
+
+        function renderChannels(channels) {
+            const grid = document.getElementById('channelGrid');
+            if (channels.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #94a3b8;">暂无货道数据</div>';
+                return;
+            }
+
+            grid.innerHTML = channels.map(ch => {
+                const fillRate = ch.max_qty > 0 ? Math.round((ch.current_qty || 0) / ch.max_qty * 100) : 0;
+                let stockClass = 'high';
+                if (fillRate < 20) {
+                    stockClass = 'low';
+                } else if (fillRate < 50) {
+                    stockClass = 'medium';
+                }
+
+                return '<div class="channel-cell ' + stockClass + '" onclick="openReplenishModal(' + ch.id + ', ' + ch.channel_no + ', \'' + (ch.product_name || '') + '\', ' + ch.current_qty + ', ' + ch.max_qty + ')" title="' + (ch.product_name || '未命名商品') + '\n点击补货">' +
+                    '<span class="ch-no">' + ch.channel_no + '</span>' +
+                    '<div class="ch-progress"><div class="ch-fill" style="width: ' + fillRate + '%"></div></div>' +
+                    '<span class="ch-qty">' + ch.current_qty + '/' + ch.max_qty + '</span>' +
+                '</div>';
+            }).join('');
+        }
+
+        function fillAllChannels() {
+            if (currentChannels.length === 0) {
+                showToast('请先选择机器');
+                return;
+            }
+
+            const needsReplenish = currentChannels.filter(ch => ch.current_qty < ch.max_qty);
+            if (needsReplenish.length === 0) {
+                showToast('所有货道已满，无需补货');
+                return;
+            }
+
+            if (!confirm('确定要将 ' + needsReplenish.length + ' 个货道补满吗？')) return;
+
+            let completed = 0;
+            needsReplenish.forEach(ch => {
+                const qty = ch.max_qty - ch.current_qty;
+                fetch('/admin/api/channel/' + ch.id + '/replenish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantity: qty, operator_name: 'admin', method: 'fill_all' })
+                }).then(r => r.json()).then(data => {
+                    completed++;
+                    if (completed === needsReplenish.length) {
+                        showToast('所有货道已补满');
+                        loadChannels(currentMachineId);
+                    }
+                }).catch(() => {
+                    completed++;
+                    if (completed === needsReplenish.length) {
+                        showToast('部分货道补货失败');
+                        loadChannels(currentMachineId);
+                    }
+                });
+            });
+        }
+
+        function closeChannelModal() {
+            document.getElementById('channelModal').classList.remove('active');
+            currentMachineId = null;
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('channelsTab').style.display = tab === 'channels' ? 'block' : 'none';
+            document.getElementById('deviceTab').style.display = tab === 'device' ? 'block' : 'none';
+            document.getElementById('logsTab').style.display = tab === 'logs' ? 'block' : 'none';
+
+            if (tab === 'logs' && currentChannels.length > 0) {
+                loadLogs(currentChannels[0].id);
+            }
+        }
+
+        function saveDeviceInfo() {
+            const data = {
+                imei: document.getElementById('editImei').value.trim(),
+                sim_no: document.getElementById('editSim').value.trim(),
+                firmware_version: document.getElementById('editFirmware').value.trim()
+            };
+
+            fetch('/admin/api/machine/' + currentMachineId + '/device-info', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    showToast('设备信息已保存');
+                    // 更新显示
+                    document.getElementById('infoImei').textContent = data.imei || '未设置';
+                    document.getElementById('infoSim').textContent = data.sim_no || '未设置';
+                    document.getElementById('infoFirmware').textContent = data.firmware_version || '未知';
+                } else {
+                    showToast('保存失败', 'error');
+                }
+            });
+        }
+
+        function openReplenishModal(channelId, channelNo, productName, currentQty, maxQty) {
+            currentChannelId = channelId;
+            document.getElementById('replenishChannelInfo').innerHTML = 
+                '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">' +
+                    '<span style="color: #6366f1; font-weight: 600;">货道 ' + channelNo + '</span>' +
+                    '<span style="color: #94a3b8;">' + productName + '</span>' +
+                '</div>' +
+                '<div style="color: #94a3b8; font-size: 0.9rem;">当前库存: <span style="color: #f8fafc;">' + currentQty + '</span> / ' + maxQty + '</div>';
+            document.getElementById('replenishQty').value = maxQty - currentQty;
+            document.getElementById('replenishNotes').value = '';
+            document.getElementById('replenishModal').classList.add('active');
+        }
+
+        function closeReplenishModal() {
+            document.getElementById('replenishModal').classList.remove('active');
+            currentChannelId = null;
+        }
+
+        function confirmReplenish() {
+            const quantity = parseInt(document.getElementById('replenishQty').value);
+            const notes = document.getElementById('replenishNotes').value.trim();
+
+            if (!quantity || quantity <= 0) {
+                showToast('请输入正确的补货数量', 'error');
+                return;
+            }
+
+            fetch('/admin/api/channel/' + currentChannelId + '/replenish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantity, notes })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    closeReplenishModal();
+                    loadChannels(currentMachineId);
+                    loadMachines(); // 更新统计
+                    showToast('补货成功！' + data.data.before_qty + ' → ' + data.data.after_qty);
+                } else {
+                    showToast(data.error || '补货失败', 'error');
+                }
+            });
+        }
+
+        function openChannelEdit(channelId) {
+            const channel = currentChannels.find(c => c.id === channelId);
+            if (!channel) return;
+
+            const newName = prompt('修改商品名称:', channel.product_name);
+            if (newName !== null) {
+                fetch('/admin/api/channel/' + channelId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_name: newName })
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        loadChannels(currentMachineId);
+                        showToast('配置已更新');
+                    } else {
+                        showToast('更新失败', 'error');
+                    }
+                });
+            }
+        }
+
+        function loadLogs(channelId) {
+            fetch('/admin/api/channel/' + channelId + '/logs').then(r => r.json()).then(data => {
+                const list = document.getElementById('logsList');
+                if (data.success && data.data.length > 0) {
+                    list.innerHTML = data.data.map(log => 
+                        '<div style="padding: 12px; border-bottom: 1px solid #334155;">' +
+                            '<div style="display: flex; justify-content: space-between; margin-bottom: 6px;">' +
+                                '<span style="color: #f8fafc;">' + log.before_qty + ' → ' + log.after_qty + ' (+' + log.quantity_added + ')</span>' +
+                                '<span style="color: #94a3b8; font-size: 0.8rem;">' + log.created_at + '</span>' +
+                            '</div>' +
+                            '<div style="color: #94a3b8; font-size: 0.8rem;">操作人: ' + log.operator_name + (log.notes ? ' | ' + log.notes : '') + '</div>' +
+                        '</div>'
+                    ).join('');
+                } else {
+                    list.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;">暂无补货记录</div>';
+                }
+            });
+        }
+
+        // 页面加载
         loadMachines();
     </script>
 </body>
