@@ -691,10 +691,11 @@
                     stockClass = 'medium';
                 }
 
-                return '<div class="channel-cell ' + stockClass + '" onclick="openReplenishModal(' + ch.id + ', ' + ch.channel_no + ', \'' + (ch.product_name || '') + '\', ' + ch.current_qty + ', ' + ch.max_qty + ')" title="' + (ch.product_name || '未命名商品') + '\n点击补货">' +
+                return '<div class="channel-cell ' + stockClass + '" onclick="openReplenishModal(' + ch.id + ', ' + ch.channel_no + ', \'' + (ch.product_name || '') + '\', ' + ch.current_qty + ', ' + ch.max_qty + ')" title="' + (ch.product_name || '未命名商品') + '\n点击补货\n出货次数: ' + (ch.dispense_count || 0) + '">' +
                     '<span class="ch-no">' + ch.channel_no + '</span>' +
                     '<div class="ch-progress"><div class="ch-fill" style="width: ' + fillRate + '%"></div></div>' +
                     '<span class="ch-qty">' + ch.current_qty + '/' + ch.max_qty + '</span>' +
+                    '<span class="ch-dispense" style="font-size: 0.6rem; color: #94a3b8; margin-top: 2px;">出货:' + (ch.dispense_count || 0) + '</span>' +
                 '</div>';
             }).join('');
         }

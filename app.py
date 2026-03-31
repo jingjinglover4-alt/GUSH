@@ -184,6 +184,24 @@ class Stats(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 
+class DispenseLog(db.Model):
+    """出货记录"""
+    __tablename__ = 'dispense_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    channel_id = db.Column(db.Integer, db.ForeignKey('channels.id'), nullable=False)
+    redeem_code_id = db.Column(db.Integer, db.ForeignKey('redeem_codes.id'), nullable=False)
+    machine_id = db.Column(db.Integer, db.ForeignKey('machines.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    channel_no = db.Column(db.String(10), nullable=False)  # 货道编号 A0-F9
+    dispensed_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # 关系
+    channel = db.relationship('Channel', backref='dispense_logs', lazy=True)
+    redeem_code = db.relationship('RedeemCode', backref='dispense_log', lazy=True)
+    machine = db.relationship('Machine', backref='dispense_logs', lazy=True)
+    customer = db.relationship('Customer', backref='dispense_logs', lazy=True)
+
+
 # ==================== 辅助函数 ====================
 
 def generate_code(length=6):
@@ -601,7 +619,7 @@ def api_delete_codes():
 
 @app.route(f'{ADMIN_PREFIX}/api/machines', methods=['GET'])
 def api_get_machines():
-    """获取机器列表"""
+    """获取机器列表（包含货道和库存统计）"""
     if 'admin_id' not in session:
         return jsonify({'success': False, 'message': '未登录'})
 
@@ -612,20 +630,58 @@ def api_get_machines():
         query = query.filter_by(customer_id=customer_id)
 
     machines = query.all()
-
-    return jsonify({
-        'success': True,
-        'data': [{
+    
+    result = []
+    for m in machines:
+        # 查询该机器的所有货道
+        channels = Channel.query.filter_by(machine_id=m.id, status='normal').all()
+        channel_count = len(channels)
+        
+        # 计算可用货道数（有库存的货道）
+        available_channels = 0
+        total_qty = 0
+        max_capacity = 0
+        
+        for ch in channels:
+            # 获取库存
+            inventory = Inventory.query.filter_by(channel_id=ch.id).first()
+            if inventory:
+                total_qty += inventory.current_qty
+                max_capacity += ch.max_qty
+                if inventory.current_qty > 0:
+                    available_channels += 1
+        
+        # 获取客户名称
+        customer = Customer.query.get(m.customer_id)
+        customer_name = customer.name if customer else '-'
+        
+        # 计算在线状态
+        online = False
+        if m.last_heartbeat:
+            # 简单判断：5分钟内有心跳则在线
+            delta = datetime.now() - m.last_heartbeat
+            online = delta.total_seconds() < 300  # 5分钟
+        
+        result.append({
             'id': m.id,
             'machine_code': m.machine_code,
             'name': m.name,
+            'customer_name': customer_name,
             'location': m.location,
-            'status': m.status,
+            'status': 'online' if online else 'offline',
             'imei': m.imei or '',
             'sim_no': m.sim_no or '',
             'firmware_version': m.firmware_version or '',
-            'last_heartbeat': m.last_heartbeat.strftime('%Y-%m-%d %H:%M:%S') if m.last_heartbeat else ''
-        } for m in machines]
+            'last_heartbeat': m.last_heartbeat.strftime('%Y-%m-%d %H:%M:%S') if m.last_heartbeat else '',
+            'channel_count': channel_count,
+            'available_channels': available_channels,
+            'total_qty': total_qty,
+            'max_capacity': max_capacity
+        })
+
+    return jsonify({
+        'success': True,
+        'data': result
     })
 
 
@@ -731,6 +787,16 @@ def api_get_machine_channels(machine_id):
     if channel_ids:
         inv_records = Inventory.query.filter(Inventory.channel_id.in_(channel_ids)).all()
         inventory_map = {inv.channel_id: inv.current_qty for inv in inv_records}
+    
+    # 获取出货统计信息
+    dispense_count_map = {}
+    if channel_ids:
+        from sqlalchemy import func
+        dispense_counts = db.session.query(
+            DispenseLog.channel_id,
+            func.count(DispenseLog.id).label('dispense_count')
+        ).filter(DispenseLog.channel_id.in_(channel_ids)).group_by(DispenseLog.channel_id).all()
+        dispense_count_map = {channel_id: count for channel_id, count in dispense_counts}
 
     return jsonify({
         'success': True,
@@ -743,7 +809,8 @@ def api_get_machine_channels(machine_id):
             'current_qty': inventory_map.get(ch.id, 0),
             'unit_price': ch.unit_price,
             'low_stock_threshold': ch.low_stock_threshold,
-            'status': ch.status
+            'status': ch.status,
+            'dispense_count': dispense_count_map.get(ch.id, 0)  # 出货次数
         } for ch in channels]
     })
 
@@ -910,6 +977,28 @@ def api_get_stats():
 
 # ==================== 机器端API ====================
 
+# 货道循环选择辅助函数
+def index_to_channel_no(index):
+    """将索引0-59转换为A0-F9格式"""
+    if index < 0 or index >= 60:
+        return 'A0'
+    row = index // 10
+    col = index % 10
+    letter = chr(ord('A') + row)
+    return f'{letter}{col}'
+
+def channel_no_to_index(channel_no):
+    """将A0-F9格式转换为索引0-59"""
+    if not channel_no or len(channel_no) < 2:
+        return 0
+    letter = channel_no[0].upper()
+    col = int(channel_no[1]) if channel_no[1].isdigit() else 0
+    row = ord(letter) - ord('A')
+    return row * 10 + col
+
+# 存储每个机器最后使用的货道索引（内存中，重启重置）
+machine_last_channel_index = {}
+
 @app.route(f'{ADMIN_PREFIX}/api/redeem/verify', methods=['POST'])
 def api_verify_code():
     """验证兑换码（机器端调用）"""
@@ -941,26 +1030,71 @@ def api_verify_code():
     if redeem_code.status == 'expired' or (redeem_code.expired_at and datetime.now() > redeem_code.expired_at):
         return jsonify({'success': False, 'message': '兑换码已过期'})
 
-    # 验证成功，从库存中查找有货的货道
-    # 查询该机器有库存的货道（current_qty > 0）
-    available_channel = db.session.execute(
-        db.select(Channel).filter(
-            Channel.machine_id == machine.id,
-            Channel.status == 'normal'
-        ).join(Inventory).filter(
-            Inventory.current_qty > 0
-        ).limit(1)
-    ).scalars().first()
+    # 获取该机器所有正常状态的货道
+    channels = Channel.query.filter(
+        Channel.machine_id == machine.id,
+        Channel.status == 'normal'
+    ).order_by(Channel.channel_no).all()
     
-    if not available_channel:
+    if not channels:
+        return jsonify({'success': False, 'message': '机器无可用货道'})
+    
+    # 辅助函数：将channel_no规范化为A0-F9格式字符串
+    def normalize_channel_no(val):
+        if isinstance(val, int):
+            return index_to_channel_no(val)
+        else:
+            # 确保字符串格式一致（大写字母+数字）
+            s = str(val).strip().upper()
+            if len(s) >= 2 and s[0].isalpha() and s[1:].isdigit():
+                return s[0] + s[1:]  # 保持格式如"A0"
+            return s
+    
+    # 获取当前机器的最后使用索引
+    current_index = machine_last_channel_index.get(machine.id, -1)
+    
+    # 循环查找有库存的货道
+    found_channel = None
+    for offset in range(1, 61):  # 最多尝试60次
+        try_index = (current_index + offset) % 60
+        target_channel_no = index_to_channel_no(try_index)
+        
+        # 查找对应channel_no的货道
+        channel = next((c for c in channels if normalize_channel_no(c.channel_no) == target_channel_no), None)
+        if channel:
+            # 检查库存
+            inventory = Inventory.query.filter_by(channel_id=channel.id).first()
+            if inventory and inventory.current_qty > 0:
+                found_channel = channel
+                machine_last_channel_index[machine.id] = try_index
+                break
+    
+    if not found_channel:
         return jsonify({'success': False, 'message': '机器无可用货道'})
     
     # 标记兑换码已使用
     redeem_code.status = 'used'
     redeem_code.used_at = datetime.now()
     redeem_code.used_machine_id = machine.id
-    db.session.commit()
-
+    
+    # 创建出货记录
+    # 确保channel_no是字符串格式（A0-F9）
+    channel_no_str = str(found_channel.channel_no)
+    # 如果channel_no是整数，转换为字符串格式
+    if channel_no_str.isdigit():
+        channel_no_int = int(channel_no_str)
+        channel_no_str = index_to_channel_no(channel_no_int)
+    
+    dispense_log = DispenseLog(
+        channel_id=found_channel.id,
+        redeem_code_id=redeem_code.id,
+        machine_id=machine.id,
+        customer_id=machine.customer_id,
+        channel_no=channel_no_str,
+        dispensed_at=datetime.now()
+    )
+    db.session.add(dispense_log)
+    
     # 更新统计数据
     today = datetime.now().date()
     stats = Stats.query.filter_by(customer_id=machine.customer_id, date=today).first()
@@ -969,6 +1103,7 @@ def api_verify_code():
     else:
         stats = Stats(customer_id=machine.customer_id, date=today, redeem_count=1)
         db.session.add(stats)
+    
     db.session.commit()
 
     # 返回发货指令，包含 slot 字段
@@ -976,8 +1111,8 @@ def api_verify_code():
         'success': True,
         'message': '验证成功',
         'action': 'dispense',
-        'slot': f'Slot{available_channel.channel_no}',  # 返回 slot 供上位机识别
-        'channel': available_channel.channel_no
+        'slot': f'Slot{channel_no_str}',  # 返回 slot 供上位机识别
+        'channel': channel_no_str
     })
 
 
