@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>测试中控台修复</h1>
+<script>
+// 首先登录获取session
+fetch('/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({username: 'admin', password: '123456'}),
+    credentials: 'include'
+})
+.then(response => {
+    console.log('登录响应:', response.status);
+    if (response.ok) {
+        // 登录成功后跳转到中控台
+        window.location.href = '/admin/control';
+    }
+})
+.catch(error => {
+    console.error('登录错误:', error);
+    document.body.innerHTML += '<p style="color: red;">登录失败: ' + error + '</p>';
+});
+</script>
+</body>
+</html>

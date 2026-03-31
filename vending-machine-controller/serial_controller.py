@@ -123,12 +123,14 @@ class SerialController:
                     
                     # 解析回复
                     if line.startswith("OK:"):
-                        # 成功接受指令
-                        logger.info(f"[OK] 出货指令已接受: {channel}")
-                        return {"success": True, "status": "ok", "channel": channel}
+                        # 成功接受指令，解析 slot 字段（如 "OK: Slot1"）
+                        # 格式: "OK: Slot1" 或 "OK: Slot10" 等
+                        slot = line.split(":", 1)[1].strip() if ":" in line else line
+                        logger.info(f"[OK] 出货指令已接受: {channel}, slot: {slot}")
+                        return {"success": True, "status": "ok", "channel": channel, "slot": slot}
                     elif line.startswith("ERR:") or line.startswith("ERROR:"):
                         logger.warning(f"[ERROR] 出货失败: {line}")
-                        return {"success": False, "status": line.split(":", 1)[1].strip(), "channel": channel}
+                        return {"success": False, "status": line.split(":", 1)[1].strip(), "message": line, "channel": channel}
                     elif line.startswith("DONE:"):
                         # 出货完成消息，可以忽略（已在 OK 时扣库存）
                         continue

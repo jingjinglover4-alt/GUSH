@@ -30,3 +30,55 @@ __pycache__/
 
 # WorkBuddy
 .workbuddy/
+
+# 临时开发文件
+*_enhanced_*.py
+*_fix_*.py
+fix_*.py
+*_missing_*.py
+add_*.py
+check_*.py
+cleanup_*.py
+final_*.py
+simple_*.py
+tmp_*.py
+verify_*.py
+wechat_*.py
+machine_*.py
+server_routes.py
+routes_new.py
+hinana-admin-apis.py
+hinana-admin-control.js
+new_*.html
+dashboard_enhanced_*.html
+machine_frontend.html
+vending_deploy.sh
+auto_work.sh
+verify_fixed.sql
+
+# 备份和配置
+backup_h5_query/
+cdgushai.com.conf
+vending.conf
+hinana-admin.tar.gz
+Last
+
+# 图片和生成文件
+generated-images/
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.tar.gz
+*.zip
+
+# 数据库文件
+hinana.db
+*.db-journal
+
+# 日志
+*.log
+
+# 工作区
+.workbuddy/
+

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户记录 - HI拿管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-dark: #0f172a;
+            --bg-sidebar: #1e293b;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --bg-input: #0f172a;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --active-nav: rgba(99,102,241,0.15);
+        }
+        body { background: var(--bg-dark); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            width: 240px; min-height: 100vh; background: var(--bg-sidebar);
+            border-right: 1px solid var(--border); display: flex; flex-direction: column;
+            position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+        }
+        .sidebar-logo {
+            padding: 24px 20px; border-bottom: 1px solid var(--border);
+        }
+        .logo-brand { display: flex; align-items: center; gap: 10px; }
+        .logo-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; color: #fff;
+        }
+        .logo-text .brand { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .logo-text .sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
+
+        .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+            border-radius: 10px; text-decoration: none; color: var(--text-secondary);
+            font-size: 0.9rem; font-weight: 500; transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .nav-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+        .nav-item.active { background: var(--active-nav); color: var(--primary); border-color: rgba(99,102,241,0.3); }
+        .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 20px; border-top: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .admin-info { display: flex; align-items: center; gap: 10px; }
+        .admin-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 700; color: #fff;
+        }
+        .admin-name { font-size: 0.85rem; font-weight: 500; }
+        .logout-btn {
+            font-size: 0.75rem; color: var(--text-secondary); text-decoration: none;
+            padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .logout-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+        /* ===== 主内容 ===== */
+        .main-content { margin-left: 240px; flex: 1; padding: 30px; min-height: 100vh; }
+
+        .page-header { margin-bottom: 24px; }
+        .page-title { font-size: 1.6rem; font-weight: 700; color: var(--text-primary); }
+        .page-subtitle { font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; }
+
+        /* ===== 统计卡片 ===== */
+        .user-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .user-stat-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; text-align: center;
+        }
+        .stat-num { font-size: 2rem; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; }
+        .user-stat-card.blue .stat-num { color: #3b82f6; }
+        .user-stat-card.purple .stat-num { color: #a855f7; }
+        .user-stat-card.teal .stat-num { color: #14b8a6; }
+
+        /* ===== 表格容器 ===== */
+        .table-container {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
+        }
+        .table-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .table-title { font-weight: 600; color: var(--text-primary); }
+        .filter-group { display: flex; gap: 10px; }
+        .filter-input {
+            background: var(--bg-input); border: 1px solid var(--border);
+            color: var(--text-primary); padding: 10px 14px; border-radius: 8px;
+            font-size: 0.9rem; outline: none; width: 200px;
+        }
+        .filter-input:focus { border-color: var(--primary); }
+        .filter-input::placeholder { color: var(--text-secondary); }
+        .search-btn {
+            padding: 10px 18px; background: var(--primary); color: #fff;
+            border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.875rem; font-weight: 500; display: flex; align-items: center; gap: 7px;
+            transition: all 0.2s;
+        }
+        .search-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            background: rgba(0,0,0,0.2); padding: 14px 18px;
+            text-align: left; font-weight: 600; color: var(--text-secondary);
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .data-table td {
+            padding: 16px 18px; border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        .data-table tr:hover td { background: rgba(99,102,241,0.05); }
+
+        /* 用户信息 */
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 0.9rem;
+        }
+        .user-name { font-weight: 500; }
+        .user-openid {
+            font-size: 0.75rem; color: var(--text-secondary); font-family: monospace;
+        }
+        .time-tag { font-size: 0.8rem; color: var(--text-secondary); }
+        .action-link {
+            color: var(--primary); text-decoration: none; font-size: 0.85rem; cursor: pointer;
+        }
+        .action-link:hover { text-decoration: underline; }
+
+        /* 空状态 */
+        .empty-state { text-align: center; padding: 80px 20px; }
+        .empty-icon { font-size: 4rem; margin-bottom: 16px; opacity: 0.3; }
+        .empty-text { color: var(--text-secondary); font-size: 1rem; margin-bottom: 8px; }
+        .empty-sub { color: var(--text-secondary); font-size: 0.85rem; opacity: 0.7; }
+
+        /* 分页 */
+        .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px 0; }
+        .action-btn {
+            padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--text-secondary); border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .action-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* 加载动画 */
+        .loading-spinner {
+            display: inline-block; width: 24px; height: 24px;
+            border: 2px solid var(--border); border-top-color: var(--primary);
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .user-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0; }
+            .user-stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-brand">
+                <div class="logo-icon">G</div>
+                <div class="logo-text">
+                    <div class="brand">HI拿</div>
+                    <div class="sub">智能派样SaaS</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item">
+                <span class="nav-icon">📊</span>
+                <span>仪表盘</span>
+            </a>
+            <a href="/admin/customers" class="nav-item">
+                <span class="nav-icon">🏢</span>
+                <span>客户管理</span>
+            </a>
+            <a href="/admin/codes" class="nav-item">
+                <span class="nav-icon">🎫</span>
+                <span>兑换码</span>
+            </a>
+            <a href="/admin/machines" class="nav-item">
+                <span class="nav-icon">📱</span>
+                <span>机器管理</span>
+            </a>
+            <a href="/admin/users" class="nav-item active">
+                <span class="nav-icon">👥</span>
+                <span>用户记录</span>
+            </a>
+            <a href="/admin/content" class="nav-item">
+                <span class="nav-icon">🎨</span>
+                <span>内容管理</span>
+            </a>
+            <a href="/admin/settings" class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                <span>系统设置</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="admin-info">
+                <div class="admin-avatar">{{ session.get('admin_name', 'A')[:1] }}</div>
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+            </div>
+            <a href="/admin/logout" class="logout-btn">退出</a>
+        </div>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">用户记录</h1>
+                <p class="page-subtitle">查看小程序用户领取兑换码的完整记录</p>
+            </div>
+            <button class="search-btn" onclick="exportUsers()">
+                📥 导出数据
+            </button>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="user-stats" id="userStats">
+            <div class="user-stat-card">
+                <div class="stat-num" id="totalUsers">-</div>
+                <div class="stat-label">总用户数</div>
+            </div>
+            <div class="user-stat-card blue">
+                <div class="stat-num" id="activeUsers">-</div>
+                <div class="stat-label">活跃用户</div>
+            </div>
+            <div class="user-stat-card purple">
+                <div class="stat-num" id="totalClaims">-</div>
+                <div class="stat-label">领取次数</div>
+            </div>
+            <div class="user-stat-card teal">
+                <div class="stat-num" id="totalRedeems">-</div>
+                <div class="stat-label">核销次数</div>
+            </div>
+        </div>
+
+        <!-- 数据表格 -->
+        <div class="table-container">
+            <div class="table-header">
+                <span class="table-title">用户列表</span>
+                <div class="filter-group">
+                    <input type="text" class="filter-input" id="searchKeyword" placeholder="搜索OpenID...">
+                    <button class="search-btn" onclick="loadUsers(1)">搜索</button>
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>用户</th>
+                        <th>OpenID</th>
+                        <th>领取次数</th>
+                        <th>核销次数</th>
+                        <th>最近领取</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userList">
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="loading-spinner"></div>
+                            <div class="empty-text" style="margin-top:15px;">加载中...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        <div class="pagination" id="pagination"></div>
+    </main>
+
+    <script>
+        let currentPage = 1;
+        const limit = 20;
+
+        function loadUsers(page = 1) {
+            currentPage = page;
+            const keyword = document.getElementById('searchKeyword').value.trim();
+            
+            document.getElementById('userList').innerHTML = '<tr><td colspan="6" class="empty-state"><div class="loading-spinner"></div><div class="empty-text" style="margin-top:15px;">加载中...</div></td></tr>';
+
+            fetch('/admin/api/users?page=' + page + '&limit=' + limit + (keyword ? '&keyword=' + encodeURIComponent(keyword) : ''))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新统计
+                        document.getElementById('totalUsers').textContent = data.total || 0;
+                        document.getElementById('activeUsers').textContent = data.data ? data.data.length : 0;
+                        document.getElementById('totalClaims').textContent = data.total_claims || 0;
+                        document.getElementById('totalRedeems').textContent = data.total_redeems || 0;
+                        
+                        renderUsers(data.data || []);
+                        renderPagination(data.total || 0);
+                    } else {
+                        renderUsers([]);
+                    }
+                })
+                .catch(() => renderUsers([]));
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('userList');
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">暂无用户记录</div><div class="empty-sub">小程序上线后用户数据将显示在此处</div></div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(u => {
+                const initial = (u.nickname || u.openid || 'U').charAt(0).toUpperCase();
+                return '<tr>' +
+                    '<td><div class="user-info"><div class="user-avatar">' + initial + '</div><div><div class="user-name">' + (u.nickname || '微信用户') + '</div></div></div></td>' +
+                    '<td><span class="user-openid">' + (u.openid || '-') + '</span></td>' +
+                    '<td>' + (u.claim_count || 0) + '</td>' +
+                    '<td>' + (u.redeem_count || 0) + '</td>' +
+                    '<td><span class="time-tag">' + (u.last_claim_at || '-') + '</span></td>' +
+                    '<td><span class="action-link" onclick="viewDetail(\'' + (u.openid || '') + '\')">查看详情</span></td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        function renderPagination(total) {
+            const totalPages = Math.ceil(total / limit);
+            const container = document.getElementById('pagination');
+            
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            if (currentPage > 1) {
+                html += '<button class="action-btn" onclick="loadUsers(' + (currentPage - 1) + ')">上一页</button>';
+            }
+            html += '<span style="padding: 8px 15px; color: var(--text-secondary);">第 ' + currentPage + ' / ' + totalPages + ' 页，共 ' + total + ' 条</span>';
+            if (currentPage < totalPages) {
+                html += '<button class="action-btn" onclick="loadUsers(' + (currentPage + 1) + ')">下一页</button>';
+            }
+            container.innerHTML = html;
+        }
+
+        function viewDetail(openid) {
+            alert('用户详情功能开发中\nOpenID: ' + openid);
+        }
+
+        function exportUsers() {
+            alert('导出功能开发中');
+        }
+
+        // 搜索回车事件
+        document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loadUsers(1);
+        });
+
+        // 初始加载
+        loadUsers();
+    </script>
+</body>
+</html>

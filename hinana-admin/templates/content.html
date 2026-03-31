@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>内容管理 - HI拿管理后台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; }
+
+    /* ── 侧边栏 ── */
+    .sidebar { width: 240px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid #334155; }
+    .logo-text { font-size: 1.3rem; font-weight: 700; color: #6366f1; letter-spacing: 2px; }
+    .logo-sub { font-size: 0.7rem; color: #64748b; margin-top: 2px; }
+    .sidebar-nav { padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .nav-item { color: #94a3b8; border-radius: 10px; padding: 11px 14px; display: flex; align-items: center; gap: 12px; text-decoration: none; transition: all 0.2s; font-size: 0.9rem; font-weight: 500; border: 1px solid transparent; }
+    .nav-item:hover { background: #334155; color: #f8fafc; }
+    .nav-item.active { background: rgba(99,102,241,0.15); color: #6366f1; border-color: rgba(99,102,241,0.3); }
+    .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-footer { border-top: 1px solid #334155; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .user-info { display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 32px; height: 32px; background: linear-gradient(135deg,#6366f1,#8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; }
+    .user-name { font-size: 0.85rem; font-weight: 500; color: #f8fafc; }
+    .logout-btn { color: #64748b; font-size: 0.8rem; text-decoration: none; }
+    .logout-btn:hover { color: #f87171; }
+
+    /* ── 主区域 ── */
+    .main { flex: 1; display: flex; overflow: hidden; }
+
+    /* ── 左侧编辑面板 ── */
+    .edit-panel { width: 460px; flex-shrink: 0; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
+    .panel-header { padding: 24px 24px 16px; border-bottom: 1px solid #334155; }
+    .panel-title { font-size: 1.1rem; font-weight: 700; color: #f8fafc; }
+    .panel-desc { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+    .panel-scroll { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .panel-scroll::-webkit-scrollbar { width: 4px; }
+    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+    /* ── 编辑卡片 ── */
+    .edit-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 18px; margin-bottom: 16px; transition: border-color 0.2s; }
+    .edit-card:hover { border-color: #475569; }
+    .edit-card.active { border-color: #6366f1; }
+    .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .card-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .icon-blue { background: rgba(99,102,241,0.15); }
+    .icon-green { background: rgba(16,185,129,0.15); }
+    .icon-purple { background: rgba(139,92,246,0.15); }
+    .icon-amber { background: rgba(245,158,11,0.15); }
+    .icon-rose { background: rgba(244,63,94,0.15); }
+    .icon-cyan { background: rgba(6,182,212,0.15); }
+    .card-title { font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
+    .card-subtitle { font-size: 0.75rem; color: #64748b; margin-top: 1px; }
+
+    /* ── 表单元素 ── */
+    .form-group { margin-bottom: 12px; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-label { font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px; display: block; }
+    .form-input { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 9px 12px; color: #f8fafc; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
+    .form-input:focus { border-color: #6366f1; }
+    .form-input::placeholder { color: #475569; }
+
+    /* ── 图片上传区 ── */
+    .upload-area { border: 1.5px dashed #334155; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+    .upload-area:hover { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+    .upload-area.dragover { border-color: #6366f1; background: rgba(99,102,241,0.08); }
+    .upload-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 1.8rem; margin-bottom: 6px; display: block; }
+    .upload-text { font-size: 0.8rem; color: #64748b; }
+    .upload-hint { font-size: 0.72rem; color: #475569; margin-top: 3px; }
+    .upload-preview { width: 100%; border-radius: 8px; margin-top: 10px; max-height: 120px; object-fit: contain; display: none; }
+    .upload-preview.show { display: block; }
+
+    /* ── 两列布局 ── */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── 保存按钮 ── */
+    .save-bar { padding: 16px 24px; border-top: 1px solid #334155; background: #1e293b; }
+    .save-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 10px; color: #fff; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .save-btn:hover { opacity: 0.9; }
+    .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .save-btn .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; display: none; }
+    .save-btn.loading .spinner { display: block; }
+    .save-btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 右侧预览 ── */
+    .preview-panel { flex: 1; display: flex; flex-direction: column; background: #0f172a; overflow: hidden; }
+    .preview-header { padding: 20px 24px 16px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; }
+    .preview-title { font-size: 0.95rem; font-weight: 600; color: #94a3b8; }
+    .preview-tabs { display: flex; gap: 8px; }
+    .preview-tab { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: 1px solid #334155; color: #64748b; background: transparent; }
+    .preview-tab.active { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: #6366f1; }
+    .preview-scroll { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 30px; }
+    .phone-frame { width: 375px; min-height: 812px; background: #1a1a2e; border-radius: 40px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6), inset 0 0 0 2px #334155; flex-shrink: 0; position: relative; }
+
+    /* ── 预览内容（模拟小程序首页） ── */
+    .preview-home { min-height: 812px; background: linear-gradient(165deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%); position: relative; overflow: hidden; }
+    /* 背景图覆盖层 */
+    .preview-bg { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0.15; z-index: 0; transition: all 0.3s; }
+    .preview-content { position: relative; z-index: 1; padding: 20px; }
+    .pv-header { display: flex; align-items: center; gap: 10px; padding-bottom: 20px; }
+    .pv-logo-icon { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: #fff; flex-shrink: 0; overflow: hidden; }
+    .pv-logo-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .pv-brand-name { font-size: 15px; font-weight: 700; color: #f8fafc; }
+    .pv-brand-slogan { font-size: 10px; color: #94a3b8; }
+    .pv-hero { height: 200px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+    .pv-hero-qr { width: 140px; height: 140px; border-radius: 16px; background: #334155; border: 2px solid #475569; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .pv-hero-qr img { width: 100%; height: 100%; object-fit: cover; }
+    .pv-hero-qr .qr-placeholder { font-size: 0.75rem; color: #64748b; text-align: center; }
+    .pv-title-main { font-size: 20px; font-weight: 800; color: #f8fafc; text-align: center; margin-bottom: 8px; }
+    .pv-title-sub { font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 24px; }
+    .pv-btn { display: block; margin: 0 auto; width: 160px; padding: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 24px; color: #fff; font-size: 14px; font-weight: 600; text-align: center; }
+    .pv-footer { text-align: center; font-size: 10px; color: #475569; margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b; }
+
+    /* 兑换页预览 */
+    .preview-redeem { min-height: 812px; background: linear-gradient(165deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%); position: relative; }
+    .preview-redeem-bg { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0.15; z-index: 0; transition: all 0.3s; }
+    .pv-redeem-content { position: relative; z-index: 1; padding: 20px; }
+    .pv-topbar { padding: 10px 0 20px; border-bottom: 1px solid #1e293b; margin-bottom: 20px; }
+    .pv-form-card { background: rgba(30,41,59,0.8); border: 1px solid #334155; border-radius: 16px; padding: 20px; }
+    .pv-form-title { font-size: 16px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+    .pv-form-sub { font-size: 11px; color: #64748b; margin-bottom: 16px; }
+    .pv-input-mock { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; color: #475569; font-size: 12px; margin-bottom: 10px; }
+    .pv-submit { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; padding: 12px; color: #fff; font-size: 13px; font-weight: 600; text-align: center; margin-top: 6px; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; top: 24px; right: 24px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #f8fafc; z-index: 9999; transform: translateY(-80px); opacity: 0; transition: all 0.3s; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success .toast-icon { color: #10b981; }
+    .toast.error .toast-icon { color: #f87171; }
+    .toast-icon { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+
+<!-- ── 侧边栏 ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">HI拿</div>
+    <div class="logo-sub">智能派样系统管理后台</div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/admin/dashboard" class="nav-item"><span class="nav-icon">📊</span><span>仪表盘</span></a>
+    <a href="/admin/customers" class="nav-item"><span class="nav-icon">🏢</span><span>客户管理</span></a>
+    <a href="/admin/codes" class="nav-item"><span class="nav-icon">🎫</span><span>兑换码</span></a>
+    <a href="/admin/machines" class="nav-item"><span class="nav-icon">📱</span><span>机器管理</span></a>
+    <a href="/admin/users" class="nav-item"><span class="nav-icon">👥</span><span>用户记录</span></a>
+    <a href="/admin/content" class="nav-item active"><span class="nav-icon">🎨</span><span>内容管理</span></a>
+    <a href="/admin/settings" class="nav-item"><span class="nav-icon">⚙️</span><span>系统设置</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar">A</div>
+      <span class="user-name">管理员</span>
+    </div>
+    <a href="/admin/logout" class="logout-btn">退出</a>
+  </div>
+</aside>
+
+<!-- ── 主区域 ── -->
+<div class="main">
+
+  <!-- 编辑面板 -->
+  <div class="edit-panel">
+    <div class="panel-header">
+      <div class="panel-title">终端机内容管理</div>
+      <div class="panel-desc">修改后点击「保存发布」立即生效到终端展示页</div>
+    </div>
+
+    <div class="panel-scroll" id="editScroll">
+
+      <!-- 1. 首页背景图 -->
+      <div class="edit-card" id="card-bg">
+        <div class="card-header">
+          <div class="card-icon icon-blue">🖼️</div>
+          <div>
+            <div class="card-title">首页背景图</div>
+            <div class="card-subtitle">终端机首页的背景图片（建议 1080×1920）</div>
+          </div>
+        </div>
+        <div class="upload-area" id="bg-upload-area" onclick="triggerUpload('bg-file')">
+          <input type="file" id="bg-file" accept="image/*" onchange="handleUpload(event,'bg')">
+          <span class="upload-icon">📁</span>
+          <div class="upload-text">点击或拖拽上传背景图</div>
+          <div class="upload-hint">支持 JPG / PNG / WebP，建议竖版 9:16</div>
+        </div>
+        <img class="upload-preview" id="bg-preview" alt="背景预览">
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">或输入图片链接</label>
+          <input class="form-input" type="url" id="bg-url" placeholder="https://..." oninput="updatePreviewFromUrl('bg')">
+        </div>
+      </div>
+
+      <!-- 2. 二维码图片 -->
+      <div class="edit-card" id="card-qr">
+        <div class="card-header">
+          <div class="card-icon icon-green">📱</div>
+          <div>
+            <div class="card-title">终端机二维码图片</div>
+            <div class="card-subtitle">展示在首页中央的扫码图片</div>
+          </div>
+        </div>
+        <div class="upload-area" onclick="triggerUpload('qr-file')">
+          <input type="file" id="qr-file" accept="image/*" onchange="handleUpload(event,'qr')">
+          <span class="upload-icon">🔲</span>
+          <div class="upload-text">点击上传二维码图片</div>
+          <div class="upload-hint">支持 JPG / PNG，建议正方形</div>
+        </div>
+        <img class="upload-preview" id="qr-preview" alt="二维码预览">
+        <div class="form-group" style="margin-top:10px;">
+          <label class="form-label">或输入图片链接</label>
+          <input class="form-input" type="url" id="qr-url" placeholder="https://..." oninput="updatePreviewFromUrl('qr')">
+        </div>
+      </div>
+
+      <!-- 3. 顶部 Logo 区域 -->
+      <div class="edit-card" id="card-logo">
+        <div class="card-header">
+          <div class="card-icon icon-purple">✨</div>
+          <div>
+            <div class="card-title">顶部 Logo 区域</div>
+            <div class="card-subtitle">首页和兑换页顶部的品牌标识</div>
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <div class="upload-area" style="padding:14px;" onclick="triggerUpload('logo-file')">
+              <input type="file" id="logo-file" accept="image/*" onchange="handleUpload(event,'logo')">
+              <span class="upload-icon" style="font-size:1.4rem;">🏷️</span>
+              <div class="upload-text" style="font-size:0.75rem;">Logo 图片</div>
+              <div class="upload-hint">正方形，建议 128×128</div>
+            </div>
+            <img class="upload-preview" id="logo-preview" alt="Logo预览">
+          </div>
+          <div>
+            <div class="form-group">
+              <label class="form-label">品牌名称</label>
+              <input class="form-input" type="text" id="brand-name" placeholder="高效传媒" value="{{ config.brand_name or '高效传媒' }}" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">品牌标语</label>
+              <input class="form-input" type="text" id="brand-slogan" placeholder="智能派样 科技领航" value="{{ config.brand_slogan or '智能派样 科技领航' }}" oninput="updatePreview()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 文字区域 -->
+      <div class="edit-card" id="card-text">
+        <div class="card-header">
+          <div class="card-icon icon-amber">📝</div>
+          <div>
+            <div class="card-title">首页文字区域</div>
+            <div class="card-subtitle">标题与副标题文字</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">主标题</label>
+          <input class="form-input" type="text" id="title-main" placeholder="智能派样 轻松领取" value="{{ config.title_main or '智能派样 轻松领取' }}" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">副标题</label>
+          <input class="form-input" type="text" id="title-sub" placeholder="扫码填写信息，即刻获得专属兑换码" value="{{ config.title_sub or '扫码填写信息，即刻获得专属兑换码' }}" oninput="updatePreview()">
+        </div>
+      </div>
+
+      <!-- 5. 详细介绍文字 -->
+      <div class="edit-card" id="card-desc">
+        <div class="card-header">
+          <div class="card-icon icon-rose">📄</div>
+          <div>
+            <div class="card-title">下方详细介绍</div>
+            <div class="card-subtitle">底部版权 / 系统标识文字</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">底部版权文字</label>
+          <input class="form-input" type="text" id="footer-text" placeholder="© 高效传媒 · HI拿智能派样系统" value="{{ config.footer_text or '© 高效传媒 · HI拿智能派样系统' }}" oninput="updatePreview()">
+        </div>
+      </div>
+
+      <!-- 6. 兑换页 Logo -->
+      <div class="edit-card" id="card-redeem-logo">
+        <div class="card-header">
+          <div class="card-icon icon-cyan">🔄</div>
+          <div>
+            <div class="card-title">兑换页 Logo</div>
+            <div class="card-subtitle">信息填写页顶部的品牌图标（默认与首页同步）</div>
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <div class="upload-area" style="padding:14px;" onclick="triggerUpload('redeem-logo-file')">
+              <input type="file" id="redeem-logo-file" accept="image/*" onchange="handleUpload(event,'redeem-logo')">
+              <span class="upload-icon" style="font-size:1.4rem;">🔄</span>
+              <div class="upload-text" style="font-size:0.75rem;">兑换页 Logo</div>
+              <div class="upload-hint">不传则与首页一致</div>
+            </div>
+            <img class="upload-preview" id="redeem-logo-preview" alt="兑换Logo预览">
+          </div>
+          <div>
+            <div class="form-group">
+              <label class="form-label">兑换页品牌名</label>
+              <input class="form-input" type="text" id="redeem-brand-name" placeholder="同步首页" value="{{ config.redeem_brand_name or '' }}" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">兑换页标语</label>
+              <input class="form-input" type="text" id="redeem-brand-slogan" placeholder="同步首页" value="{{ config.redeem_brand_slogan or '' }}" oninput="updatePreview()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. 信息填写页文字 -->
+      <div class="edit-card" id="card-form-page">
+        <div class="card-header">
+          <div class="card-icon icon-amber">📋</div>
+          <div>
+            <div class="card-title">信息填写页文字</div>
+            <div class="card-subtitle">用户填写姓名手机号的表单页内容</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">表单卡片标题</label>
+          <input class="form-input" type="text" id="form-card-title" placeholder="填写领取信息" value="{{ config.form_card_title or '填写领取信息' }}" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">表单卡片副标题</label>
+          <input class="form-input" type="text" id="form-card-sub" placeholder="完成填写即可获取6位兑换码" value="{{ config.form_card_sub or '完成填写即可获取6位兑换码' }}" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">提交按钮文字</label>
+          <input class="form-input" type="text" id="submit-btn-text" placeholder="立即领取" value="{{ config.submit_btn_text or '立即领取' }}" oninput="updatePreview()">
+        </div>
+      </div>
+
+      <!-- 8. 兑换码页内容 -->
+      <div class="edit-card" id="card-code-page">
+        <div class="card-header">
+          <div class="card-icon icon-green">🎟️</div>
+          <div>
+            <div class="card-title">兑换码页内容</div>
+            <div class="card-subtitle">领取成功后显示的使用说明</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">成功提示文字</label>
+          <input class="form-input" type="text" id="success-label" placeholder="领取成功" value="{{ config.success_label or '领取成功' }}" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">使用说明标题</label>
+          <input class="form-input" type="text" id="guide-title" placeholder="如何使用兑换码" value="{{ config.guide_title or '如何使用兑换码' }}" oninput="updatePreview()">
+        </div>
+        <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">第一步</div>
+          <div class="row2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">步骤标题</label>
+              <input class="form-input" type="text" id="step1-title" placeholder="前往派样机" value="{{ config.step1_title or '前往派样机' }}" oninput="updatePreview()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">步骤说明</label>
+              <input class="form-input" type="text" id="step1-desc" placeholder="找到最近的派样机终端" value="{{ config.step1_desc or '找到最近的派样机终端' }}" oninput="updatePreview()">
+            </div>
+          </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">第二步</div>
+          <div class="row2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">步骤标题</label>
+              <input class="form-input" type="text" id="step2-title" placeholder="输入兑换码" value="{{ config.step2_title or '输入兑换码' }}" oninput="updatePreview()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">步骤说明</label>
+              <input class="form-input" type="text" id="step2-desc" placeholder="在机器上输入6位兑换码" value="{{ config.step2_desc or '在机器上输入6位兑换码' }}" oninput="updatePreview()">
+            </div>
+          </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:8px;">第三步</div>
+          <div class="row2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">步骤标题</label>
+              <input class="form-input" type="text" id="step3-title" placeholder="领取礼品" value="{{ config.step3_title or '领取礼品' }}" oninput="updatePreview()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">步骤说明</label>
+              <input class="form-input" type="text" id="step3-desc" placeholder="等待机器派发礼品" value="{{ config.step3_desc or '等待机器派发礼品' }}" oninput="updatePreview()">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">页面底部文字（客服联系）</label>
+          <input class="form-input" type="text" id="page-footer" placeholder="如有疑问，请联系客服" value="{{ config.page_footer or '如有疑问，请联系客服' }}" oninput="updatePreview()">
+        </div>
+      </div>
+
+    </div><!-- /panel-scroll -->
+
+    <div class="save-bar">
+      <button class="save-btn" id="saveBtn" onclick="saveAll()">
+        <div class="spinner"></div>
+        <span class="btn-text">💾 保存并发布</span>
+      </button>
+    </div>
+  </div><!-- /edit-panel -->
+
+  <!-- 预览面板 -->
+  <div class="preview-panel">
+    <div class="preview-header">
+      <div class="preview-title">实时预览</div>
+      <div class="preview-tabs">
+        <button class="preview-tab active" onclick="switchPreview('home',this)">首页</button>
+        <button class="preview-tab" onclick="switchPreview('form',this)">填写页</button>
+        <button class="preview-tab" onclick="switchPreview('code',this)">兑换码页</button>
+      </div>
+    </div>
+    <div class="preview-scroll">
+      <div class="phone-frame">
+
+        <!-- 首页预览 -->
+        <div class="preview-home" id="preview-home">
+          <div class="preview-bg" id="pv-bg-layer"></div>
+          <div class="preview-content">
+            <div class="pv-header">
+              <div class="pv-logo-icon" id="pv-logo-icon">
+                <img id="pv-logo-img" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
+                <span id="pv-logo-text">HI</span>
+              </div>
+              <div>
+                <div class="pv-brand-name" id="pv-brand-name">高效传媒</div>
+                <div class="pv-brand-slogan" id="pv-brand-slogan">智能派样 科技领航</div>
+              </div>
+            </div>
+            <div class="pv-hero">
+              <div class="pv-hero-qr" id="pv-qr-box">
+                <img id="pv-qr-img" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
+                <div class="qr-placeholder" id="pv-qr-placeholder">扫码领取<br>二维码</div>
+              </div>
+            </div>
+            <div class="pv-title-main" id="pv-title-main">智能派样 轻松领取</div>
+            <div class="pv-title-sub" id="pv-title-sub">扫码填写信息，即刻获得专属兑换码</div>
+            <div class="pv-btn">立即领取 →</div>
+            <div class="pv-footer" id="pv-footer">© 高效传媒 · HI拿智能派样系统</div>
+          </div>
+        </div>
+
+        <!-- 信息填写页预览 -->
+        <div class="preview-home" id="preview-form" style="display:none;">
+          <div class="preview-content">
+            <div class="pv-header pv-topbar" style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);">
+              <div class="pv-logo-icon" id="pv-form-logo-icon">
+                <img id="pv-form-logo-img" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
+                <span id="pv-form-logo-text">HI</span>
+              </div>
+              <div>
+                <div class="pv-brand-name" id="pv-form-brand-name">高效传媒</div>
+                <div class="pv-brand-slogan" id="pv-form-brand-slogan">智能派样 科技领航</div>
+              </div>
+            </div>
+            <div style="background:rgba(30,41,59,0.85);border:1px solid #334155;border-radius:16px;padding:18px;">
+              <div style="font-size:15px;font-weight:700;color:#f8fafc;margin-bottom:4px;" id="pv-form-title">填写领取信息</div>
+              <div style="font-size:11px;color:#64748b;margin-bottom:14px;" id="pv-form-sub">完成填写即可获取6位兑换码</div>
+              <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:9px 12px;color:#475569;font-size:12px;margin-bottom:8px;">请输入您的真实姓名</div>
+              <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:9px 12px;color:#475569;font-size:12px;margin-bottom:12px;">请输入11位手机号码</div>
+              <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;padding:11px;color:#fff;font-size:13px;font-weight:600;text-align:center;" id="pv-submit-btn">立即领取</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 兑换码页预览 -->
+        <div class="preview-home" id="preview-code" style="display:none;">
+          <div class="preview-content">
+            <!-- 成功头部 -->
+            <div style="text-align:center;padding:16px 0 12px;">
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;color:#fff;">✓</div>
+              <div style="font-size:13px;font-weight:600;color:#10b981;" id="pv-success-label">领取成功</div>
+            </div>
+            <!-- 兑换码卡片 -->
+            <div style="background:rgba(30,41,59,0.9);border:1px solid #334155;border-radius:16px;padding:16px;margin-bottom:12px;text-align:center;">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">您的兑换码</div>
+              <div style="font-size:28px;font-weight:800;color:#f8fafc;letter-spacing:6px;margin-bottom:8px;">• • • • • •</div>
+              <div style="font-size:10px;color:#64748b;">⏰ 兑换码有效期60秒，请尽快使用</div>
+            </div>
+            <!-- 使用说明 -->
+            <div style="background:rgba(30,41,59,0.85);border:1px solid #334155;border-radius:14px;padding:14px;">
+              <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:12px;" id="pv-guide-title">如何使用兑换码</div>
+              <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+                <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">1</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600;color:#f8fafc;" id="pv-step1-title">前往派样机</div>
+                  <div style="font-size:10px;color:#64748b;" id="pv-step1-desc">找到最近的派样机终端</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+                <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">2</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600;color:#f8fafc;" id="pv-step2-title">输入兑换码</div>
+                  <div style="font-size:10px;color:#64748b;" id="pv-step2-desc">在机器上输入6位兑换码</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:10px;">
+                <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">3</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600;color:#f8fafc;" id="pv-step3-title">领取礼品</div>
+                  <div style="font-size:10px;color:#64748b;" id="pv-step3-desc">等待机器派发礼品</div>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center;font-size:10px;color:#475569;margin-top:14px;" id="pv-page-footer">如有疑问，请联系客服</div>
+          </div>
+        </div>
+
+      </div><!-- /phone-frame -->
+    </div>
+  </div><!-- /preview-panel -->
+
+</div><!-- /main -->
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon">✅</span>
+  <span id="toast-msg">操作成功</span>
+</div>
+
+<script>
+  // ── 工具函数 ──
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    const icon = document.getElementById('toast-icon');
+    const msgEl = document.getElementById('toast-msg');
+    t.className = 'toast ' + type;
+    icon.textContent = type === 'success' ? '✅' : '❌';
+    msgEl.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function triggerUpload(inputId) {
+    // 不直接 click，因为 input 已经覆盖在 area 上，实际通过 input 触发
+  }
+
+  function handleUpload(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target.result;
+      setPreviewImage(type, src);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updatePreviewFromUrl(type) {
+    const urlInput = document.getElementById(type + '-url');
+    if (urlInput) setPreviewImage(type, urlInput.value);
+  }
+
+  function setPreviewImage(type, src) {
+    const previewImg = document.getElementById(type + '-preview');
+    if (previewImg) {
+      previewImg.src = src;
+      previewImg.classList.add('show');
+    }
+    // 同步到手机预览
+    if (type === 'bg') {
+      document.getElementById('pv-bg-layer').style.backgroundImage = `url(${src})`;
+      document.getElementById('pv-bg-layer').style.opacity = '0.25';
+    } else if (type === 'qr') {
+      const qrImg = document.getElementById('pv-qr-img');
+      const qrPlaceholder = document.getElementById('pv-qr-placeholder');
+      qrImg.src = src;
+      qrImg.style.display = 'block';
+      qrPlaceholder.style.display = 'none';
+    } else if (type === 'logo') {
+      const logoImg = document.getElementById('pv-logo-img');
+      const logoText = document.getElementById('pv-logo-text');
+      logoImg.src = src;
+      logoImg.style.display = 'block';
+      logoText.style.display = 'none';
+    } else if (type === 'redeem-logo') {
+      const img = document.getElementById('pv-redeem-logo-img');
+      const txt = document.getElementById('pv-redeem-logo-text');
+      img.src = src;
+      img.style.display = 'block';
+      txt.style.display = 'none';
+    }
+  }
+
+  function updatePreview() {
+    const brandName = document.getElementById('brand-name').value || '高效传媒';
+    const brandSlogan = document.getElementById('brand-slogan').value || '智能派样 科技领航';
+    const titleMain = document.getElementById('title-main').value || '智能派样 轻松领取';
+    const titleSub = document.getElementById('title-sub').value || '扫码填写信息，即刻获得专属兑换码';
+    const footerText = document.getElementById('footer-text').value || '© 高效传媒 · HI拿智能派样系统';
+
+    // 首页预览
+    document.getElementById('pv-brand-name').textContent = brandName;
+    document.getElementById('pv-brand-slogan').textContent = brandSlogan;
+    document.getElementById('pv-title-main').textContent = titleMain;
+    document.getElementById('pv-title-sub').textContent = titleSub;
+    document.getElementById('pv-footer').textContent = footerText;
+    document.getElementById('pv-logo-text').textContent = brandName.slice(0,2);
+
+    // 填写页预览
+    const redeemBrandName = document.getElementById('redeem-brand-name').value || brandName;
+    const redeemBrandSlogan = document.getElementById('redeem-brand-slogan').value || brandSlogan;
+    document.getElementById('pv-form-brand-name').textContent = redeemBrandName;
+    document.getElementById('pv-form-brand-slogan').textContent = redeemBrandSlogan;
+    document.getElementById('pv-form-logo-text').textContent = redeemBrandName.slice(0,2);
+    document.getElementById('pv-form-title').textContent = document.getElementById('form-card-title').value || '填写领取信息';
+    document.getElementById('pv-form-sub').textContent = document.getElementById('form-card-sub').value || '完成填写即可获取6位兑换码';
+    document.getElementById('pv-submit-btn').textContent = document.getElementById('submit-btn-text').value || '立即领取';
+
+    // 兑换码页预览
+    document.getElementById('pv-success-label').textContent = document.getElementById('success-label').value || '领取成功';
+    document.getElementById('pv-guide-title').textContent = document.getElementById('guide-title').value || '如何使用兑换码';
+    document.getElementById('pv-step1-title').textContent = document.getElementById('step1-title').value || '前往派样机';
+    document.getElementById('pv-step1-desc').textContent = document.getElementById('step1-desc').value || '找到最近的派样机终端';
+    document.getElementById('pv-step2-title').textContent = document.getElementById('step2-title').value || '输入兑换码';
+    document.getElementById('pv-step2-desc').textContent = document.getElementById('step2-desc').value || '在机器上输入6位兑换码';
+    document.getElementById('pv-step3-title').textContent = document.getElementById('step3-title').value || '领取礼品';
+    document.getElementById('pv-step3-desc').textContent = document.getElementById('step3-desc').value || '等待机器派发礼品';
+    document.getElementById('pv-page-footer').textContent = document.getElementById('page-footer').value || '如有疑问，请联系客服';
+  }
+
+  function switchPreview(type, btn) {
+    document.querySelectorAll('.preview-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('preview-home').style.display = type === 'home' ? 'block' : 'none';
+    document.getElementById('preview-form').style.display = type === 'form' ? 'block' : 'none';
+    document.getElementById('preview-code').style.display = type === 'code' ? 'block' : 'none';
+  }
+
+  // ── 保存 ──
+  async function saveAll() {
+    const btn = document.getElementById('saveBtn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const formData = new FormData();
+    // 文字字段
+    formData.append('brand_name', document.getElementById('brand-name').value);
+    formData.append('brand_slogan', document.getElementById('brand-slogan').value);
+    formData.append('title_main', document.getElementById('title-main').value);
+    formData.append('title_sub', document.getElementById('title-sub').value);
+    formData.append('footer_text', document.getElementById('footer-text').value);
+    formData.append('redeem_brand_name', document.getElementById('redeem-brand-name').value);
+    formData.append('redeem_brand_slogan', document.getElementById('redeem-brand-slogan').value);
+    // 兑换流程新增字段
+    formData.append('form_card_title', document.getElementById('form-card-title').value);
+    formData.append('form_card_sub', document.getElementById('form-card-sub').value);
+    formData.append('submit_btn_text', document.getElementById('submit-btn-text').value);
+    formData.append('success_label', document.getElementById('success-label').value);
+    formData.append('guide_title', document.getElementById('guide-title').value);
+    formData.append('step1_title', document.getElementById('step1-title').value);
+    formData.append('step1_desc', document.getElementById('step1-desc').value);
+    formData.append('step2_title', document.getElementById('step2-title').value);
+    formData.append('step2_desc', document.getElementById('step2-desc').value);
+    formData.append('step3_title', document.getElementById('step3-title').value);
+    formData.append('step3_desc', document.getElementById('step3-desc').value);
+    formData.append('page_footer', document.getElementById('page-footer').value);
+
+    // URL字段
+    formData.append('bg_url', document.getElementById('bg-url').value);
+    formData.append('qr_url', document.getElementById('qr-url').value);
+
+    // 文件字段
+    const bgFile = document.getElementById('bg-file').files[0];
+    const qrFile = document.getElementById('qr-file').files[0];
+    const logoFile = document.getElementById('logo-file').files[0];
+    const redeemLogoFile = document.getElementById('redeem-logo-file').files[0];
+
+    if (bgFile) formData.append('bg_image', bgFile);
+    if (qrFile) formData.append('qr_image', qrFile);
+    if (logoFile) formData.append('logo_image', logoFile);
+    if (redeemLogoFile) formData.append('redeem_logo_image', redeemLogoFile);
+
+    try {
+      const resp = await fetch('/admin/api/content/save', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await resp.json();
+      if (data.success) {
+        showToast('保存成功，已发布到终端展示页 🎉');
+      } else {
+        showToast('保存失败：' + (data.error || '未知错误'), 'error');
+      }
+    } catch (e) {
+      showToast('网络错误：' + e.message, 'error');
+    }
+
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+
+  // ── 拖拽上传 ──
+  document.querySelectorAll('.upload-area').forEach(area => {
+    area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+    area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+    area.addEventListener('drop', e => {
+      e.preventDefault();
+      area.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (!file || !file.type.startsWith('image/')) return;
+      // 找到对应的input
+      const input = area.querySelector('input[type=file]');
+      if (input) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change'));
+      }
+    });
+  });
+
+  // ── 初始化：读取已保存配置 ──
+  fetch('/admin/api/content/config')
+    .then(r => r.json())
+    .then(cfg => {
+      if (!cfg.success) return;
+      const c = cfg.config;
+      if (c.brand_name) document.getElementById('brand-name').value = c.brand_name;
+      if (c.brand_slogan) document.getElementById('brand-slogan').value = c.brand_slogan;
+      if (c.title_main) document.getElementById('title-main').value = c.title_main;
+      if (c.title_sub) document.getElementById('title-sub').value = c.title_sub;
+      if (c.footer_text) document.getElementById('footer-text').value = c.footer_text;
+      if (c.redeem_brand_name) document.getElementById('redeem-brand-name').value = c.redeem_brand_name;
+      if (c.redeem_brand_slogan) document.getElementById('redeem-brand-slogan').value = c.redeem_brand_slogan;
+      // 兑换流程新增字段
+      if (c.form_card_title) document.getElementById('form-card-title').value = c.form_card_title;
+      if (c.form_card_sub) document.getElementById('form-card-sub').value = c.form_card_sub;
+      if (c.submit_btn_text) document.getElementById('submit-btn-text').value = c.submit_btn_text;
+      if (c.success_label) document.getElementById('success-label').value = c.success_label;
+      if (c.guide_title) document.getElementById('guide-title').value = c.guide_title;
+      if (c.step1_title) document.getElementById('step1-title').value = c.step1_title;
+      if (c.step1_desc) document.getElementById('step1-desc').value = c.step1_desc;
+      if (c.step2_title) document.getElementById('step2-title').value = c.step2_title;
+      if (c.step2_desc) document.getElementById('step2-desc').value = c.step2_desc;
+      if (c.step3_title) document.getElementById('step3-title').value = c.step3_title;
+      if (c.step3_desc) document.getElementById('step3-desc').value = c.step3_desc;
+      if (c.page_footer) document.getElementById('page-footer').value = c.page_footer;
+      if (c.bg_url) { document.getElementById('bg-url').value = c.bg_url; setPreviewImage('bg', c.bg_url); }
+      if (c.qr_url) { document.getElementById('qr-url').value = c.qr_url; setPreviewImage('qr', c.qr_url); }
+      if (c.logo_url) setPreviewImage('logo', c.logo_url);
+      if (c.redeem_logo_url) setPreviewImage('redeem-logo', c.redeem_logo_url);
+      updatePreview();
+    })
+    .catch(() => { /* 首次没有配置是正常的 */ });
+</script>
+</body>
+</html>

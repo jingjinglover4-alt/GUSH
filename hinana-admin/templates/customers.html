@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户管理 - HI拿管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-sidebar: #1e293b;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --active-nav: rgba(99,102,241,0.15);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            width: 240px; min-height: 100vh; background: var(--bg-sidebar);
+            border-right: 1px solid var(--border); display: flex; flex-direction: column;
+            position: fixed; top: 0; left: 0; height: 100vh; z-index: 100;
+        }
+        .sidebar-logo {
+            padding: 24px 20px; border-bottom: 1px solid var(--border);
+        }
+        .logo-brand { display: flex; align-items: center; gap: 10px; }
+        .logo-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; color: #fff;
+        }
+        .logo-text .brand { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .logo-text .sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
+
+        .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+            border-radius: 10px; text-decoration: none; color: var(--text-secondary);
+            font-size: 0.9rem; font-weight: 500; transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .nav-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+        .nav-item.active { background: var(--active-nav); color: var(--primary); border-color: rgba(99,102,241,0.3); }
+        .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 20px; border-top: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .admin-info { display: flex; align-items: center; gap: 10px; }
+        .admin-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; font-weight: 700; color: #fff;
+        }
+        .admin-name { font-size: 0.85rem; font-weight: 500; }
+        .logout-btn {
+            font-size: 0.75rem; color: var(--text-secondary); text-decoration: none;
+            padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .logout-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+        /* ===== 主内容 ===== */
+        .main-content {
+            margin-left: 240px;
+            padding: 30px;
+            max-width: calc(1400px - 240px);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+
+        .btn-warning { background: var(--success); color: #fff; }
+        .btn-warning:hover { background: #059669; }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .stat-card.total::before { background: var(--primary); }
+        .stat-card.active::before { background: var(--success); }
+        .stat-card.frozen::before { background: var(--warning); }
+        .stat-card.codes::before { background: #06b6d4; }
+
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+
+        .stat-card.total .stat-icon { background: rgba(99, 102, 241, 0.2); }
+        .stat-card.active .stat-icon { background: rgba(16, 185, 129, 0.2); }
+        .stat-card.frozen .stat-icon { background: rgba(245, 158, 11, 0.2); }
+        .stat-card.codes .stat-icon { background: rgba(6, 182, 212, 0.2); }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* 搜索栏 */
+        .search-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .filter-select {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            min-width: 120px;
+        }
+        .filter-select:focus { outline: none; border-color: var(--primary); }
+
+        /* 表格 */
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: rgba(99, 102, 241, 0.1);
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--bg-card-hover); }
+
+        .customer-logo {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: var(--bg-dark);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.active {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .status-badge.frozen {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+        }
+
+        .status-badge.active .status-dot { background: var(--success); }
+        .status-badge.frozen .status-dot { background: var(--warning); }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        /* 弹窗 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 95%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 { font-size: 18px; font-weight: 600; }
+
+        .modal-close {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+        .modal-close:hover { background: var(--bg-card-hover); color: #fff; }
+
+        .modal-body { padding: 24px; }
+
+        .form-section {
+            margin-bottom: 24px;
+        }
+
+        .form-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group.full { grid-column: span 2; }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--danger); }
+
+        .toast-icon {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .toast.success .toast-icon { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .toast.error .toast-icon { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        /* 确认框 */
+        .confirm-modal .modal-content {
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .confirm-modal .modal-body {
+            padding: 32px;
+        }
+
+        .confirm-icon {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 32px;
+            color: var(--danger);
+        }
+
+        .confirm-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .confirm-text {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .confirm-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-brand">
+                <div class="logo-icon">G</div>
+                <div class="logo-text">
+                    <div class="brand">HI拿</div>
+                    <div class="sub">智能派样SaaS</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item">
+                <span class="nav-icon">📊</span>
+                <span>仪表盘</span>
+            </a>
+            <a href="/admin/customers" class="nav-item active">
+                <span class="nav-icon">🏢</span>
+                <span>客户管理</span>
+            </a>
+            <a href="/admin/codes" class="nav-item">
+                <span class="nav-icon">🎫</span>
+                <span>兑换码</span>
+            </a>
+            <a href="/admin/machines" class="nav-item">
+                <span class="nav-icon">📱</span>
+                <span>机器管理</span>
+            </a>
+            <a href="/admin/users" class="nav-item">
+                <span class="nav-icon">👥</span>
+                <span>用户记录</span>
+            </a>
+            <a href="/admin/content" class="nav-item">
+                <span class="nav-icon">🎨</span>
+                <span>内容管理</span>
+            </a>
+            <a href="/admin/settings" class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                <span>系统设置</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="admin-info">
+                <div class="admin-avatar">{{ session.get('admin_name', 'A')[:1] }}</div>
+                <span class="admin-name">{{ session.get('admin_name', 'Admin') }}</span>
+            </div>
+            <a href="/admin/logout" class="logout-btn">退出</a>
+        </div>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">客户管理</h1>
+            <button class="btn btn-primary" onclick="openAddModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                新增客户
+            </button>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card total">
+                <div class="stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    </svg>
+                </div>
+                <div class="stat-value" id="statTotal">-</div>
+                <div class="stat-label">客户总数</div>
+            </div>
+            <div class="stat-card active">
+                <div class="stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="stat-value" id="statActive">-</div>
+                <div class="stat-label">运行中</div>
+            </div>
+            <div class="stat-card frozen">
+                <div class="stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                    </svg>
+                </div>
+                <div class="stat-value" id="statFrozen">-</div>
+                <div class="stat-label">已冻结</div>
+            </div>
+            <div class="stat-card codes">
+                <div class="stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 12 20 22 4 22 4 12"></polyline>
+                        <rect x="2" y="7" width="20" height="5"></rect>
+                        <line x1="12" y1="22" x2="12" y2="7"></line>
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path>
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path>
+                    </svg>
+                </div>
+                <div class="stat-value" id="statCodes">-</div>
+                <div class="stat-label">总派样数</div>
+            </div>
+        </div>
+
+        <!-- 搜索栏 -->
+        <div class="search-bar">
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索客户名称..." oninput="filterCustomers()">
+            <select class="filter-select" id="statusFilter" onchange="filterCustomers()">
+                <option value="">全部状态</option>
+                <option value="active">运行中</option>
+                <option value="frozen">已冻结</option>
+            </select>
+        </div>
+
+        <!-- 表格 -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>客户</th>
+                        <th>应用名称</th>
+                        <th>状态</th>
+                        <th>派样数</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="customerTable">
+                    <!-- 动态加载 -->
+                </tbody>
+            </table>
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                </svg>
+                <h3>暂无客户</h3>
+                <p>点击上方按钮添加第一个客户</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 编辑弹窗 -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">编辑客户</h3>
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="customerForm">
+                    <input type="hidden" id="customerId">
+
+                    <div class="form-section">
+                        <div class="form-section-title">基本信息</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">客户名称 *</label>
+                                <input type="text" class="form-input" id="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">应用名称</label>
+                                <input type="text" class="form-input" id="app_name" placeholder="如：HI拿">
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">广告语</label>
+                                <input type="text" class="form-input" id="slogan" placeholder="智能派样 · 精准触达">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="form-section-title">素材配置</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Logo URL</label>
+                                <input type="text" class="form-input" id="logo_url" placeholder="https://...">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">背景图 URL</label>
+                                <input type="text" class="form-input" id="bg_image_url" placeholder="https://...">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">二维码 URL</label>
+                                <input type="text" class="form-input" id="qrcode_url" placeholder="https://...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="form-section-title">微信公众号配置</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">AppID</label>
+                                <input type="text" class="form-input" id="wx_appid">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">AppSecret</label>
+                                <input type="text" class="form-input" id="wx_appsecret">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="form-section-title">小程序配置</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">AppID</label>
+                                <input type="text" class="form-input" id="mp_appid">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">AppSecret</label>
+                                <input type="text" class="form-input" id="mp_appsecret">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="form-section-title">企业微信配置</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">企业ID</label>
+                                <input type="text" class="form-input" id="ww_corpid">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">应用AgentID</label>
+                                <input type="text" class="form-input" id="ww_agentid">
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">应用Secret</label>
+                                <input type="text" class="form-input" id="ww_secret">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="form-section-title">兑换码设置</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">有效期（秒）</label>
+                                <input type="number" class="form-input" id="code_expire_seconds" value="60">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">码长度</label>
+                                <input type="number" class="form-input" id="code_length" value="6">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存配置</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div class="modal confirm-modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="confirm-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </div>
+                <h3 class="confirm-title">确认删除</h3>
+                <p class="confirm-text" id="confirmText">确定要删除这个客户吗？此操作不可恢复。</p>
+                <div class="confirm-actions">
+                    <button class="btn btn-outline" onclick="closeConfirm()">取消</button>
+                    <button class="btn btn-danger" id="confirmDelete">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toastIcon">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        <span id="toastText">操作成功</span>
+    </div>
+
+    <script>
+        let customers = [];
+        let deleteId = null;
+
+        // 加载数据
+        function loadData() {
+            Promise.all([
+                fetch('/admin/api/customer-stats').then(r => r.json()),
+                fetch('/admin/api/customers').then(r => r.json())
+            ]).then(([statsData, customersData]) => {
+                if (statsData.success) {
+                    document.getElementById('statTotal').textContent = statsData.data.total;
+                    document.getElementById('statActive').textContent = statsData.data.active;
+                    document.getElementById('statFrozen').textContent = statsData.data.frozen;
+
+                    const totalCodes = statsData.data.customers.reduce((sum, c) => sum + (c.code_count || 0), 0);
+                    document.getElementById('statCodes').textContent = totalCodes.toLocaleString();
+                }
+
+                if (customersData.success) {
+                    customers = customersData.data.map(c => {
+                        const stat = statsData.data?.customers?.find(s => s.id === c.id);
+                        return { ...c, code_count: stat?.code_count || 0 };
+                    });
+                    renderTable();
+                }
+            });
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tbody = document.getElementById('customerTable');
+            const emptyState = document.getElementById('emptyState');
+
+            if (customers.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            tbody.innerHTML = customers.map(c => `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            ${c.logo_url ? `<img src="${c.logo_url}" class="customer-logo">` :
+                                `<div class="customer-logo" style="display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">G</div>`}
+                            <span style="font-weight: 500;">${c.name}</span>
+                        </div>
+                    </td>
+                    <td style="color: var(--text-secondary);">${c.app_name || '-'}</td>
+                    <td>
+                        <span class="status-badge ${c.status}">
+                            <span class="status-dot"></span>
+                            ${c.status === 'active' ? '运行中' : '已冻结'}
+                        </span>
+                    </td>
+                    <td>${c.code_count.toLocaleString()}</td>
+                    <td style="color: var(--text-secondary);">${c.created_at || '-'}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-outline btn-sm" onclick="editCustomer(${c.id})">编辑</button>
+                            <button class="btn ${c.status === 'active' ? 'btn-outline' : 'btn-warning'} btn-sm"
+                                    onclick="toggleStatus(${c.id})">
+                                ${c.status === 'active' ? '冻结' : '解冻'}
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="confirmDelete(${c.id})">删除</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 筛选
+        function filterCustomers() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+
+            const allCustomers = customers.map(c => {
+                const stat = customers.find(s => s.id === c.id);
+                return { ...c, code_count: stat?.code_count || 0 };
+            });
+
+            fetch('/admin/api/customer-stats').then(r => r.json()).then(statsData => {
+                if (statsData.success) {
+                    customers = statsData.data.customers;
+                    const filtered = customers.filter(c => {
+                        const matchKeyword = c.name.toLowerCase().includes(keyword);
+                        const matchStatus = !status || c.status === status;
+                        return matchKeyword && matchStatus;
+                    });
+
+                    const tbody = document.getElementById('customerTable');
+                    const emptyState = document.getElementById('emptyState');
+
+                    if (filtered.length === 0) {
+                        tbody.innerHTML = '';
+                        emptyState.style.display = 'block';
+                        return;
+                    }
+
+                    emptyState.style.display = 'none';
+                    tbody.innerHTML = filtered.map(c => `
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="customer-logo" style="display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">G</div>
+                                    <span style="font-weight: 500;">${c.name}</span>
+                                </div>
+                            </td>
+                            <td style="color: var(--text-secondary);">${c.app_name || '-'}</td>
+                            <td>
+                                <span class="status-badge ${c.status}">
+                                    <span class="status-dot"></span>
+                                    ${c.status === 'active' ? '运行中' : '已冻结'}
+                                </span>
+                            </td>
+                            <td>${c.code_count.toLocaleString()}</td>
+                            <td style="color: var(--text-secondary);">${c.created_at || '-'}</td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn btn-outline btn-sm" onclick="editCustomer(${c.id})">编辑</button>
+                                    <button class="btn ${c.status === 'active' ? 'btn-outline' : 'btn-warning'} btn-sm"
+                                            onclick="toggleStatus(${c.id})">
+                                        ${c.status === 'active' ? '冻结' : '解冻'}
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="confirmDelete(${c.id})">删除</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            });
+        }
+
+        // 新增弹窗
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = '新增客户';
+            document.getElementById('customerId').value = '';
+            document.getElementById('customerForm').reset();
+            document.getElementById('code_expire_seconds').value = 60;
+            document.getElementById('code_length').value = 6;
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        // 编辑客户
+        function editCustomer(id) {
+            fetch(`/admin/api/customer/${id}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const c = data.data;
+                        document.getElementById('modalTitle').textContent = '编辑客户';
+                        document.getElementById('customerId').value = c.id;
+                        document.getElementById('name').value = c.name;
+                        document.getElementById('app_name').value = c.app_name || '';
+                        document.getElementById('slogan').value = c.slogan || '';
+                        document.getElementById('logo_url').value = c.logo_url || '';
+                        document.getElementById('bg_image_url').value = c.bg_image_url || '';
+                        document.getElementById('qrcode_url').value = c.qrcode_url || '';
+                        document.getElementById('wx_appid').value = c.wx_appid || '';
+                        document.getElementById('wx_appsecret').value = c.wx_appsecret || '';
+                        document.getElementById('mp_appid').value = c.mp_appid || '';
+                        document.getElementById('mp_appsecret').value = c.mp_appsecret || '';
+                        document.getElementById('ww_corpid').value = c.ww_corpid || '';
+                        document.getElementById('ww_agentid').value = c.ww_agentid || '';
+                        document.getElementById('ww_secret').value = c.ww_secret || '';
+                        document.getElementById('code_expire_seconds').value = c.code_expire_seconds || 60;
+                        document.getElementById('code_length').value = c.code_length || 6;
+                        document.getElementById('editModal').classList.add('show');
+                    }
+                });
+        }
+
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('show');
+        }
+
+        // 保存
+        document.getElementById('customerForm').onsubmit = function(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('customerId').value;
+            const data = {
+                name: document.getElementById('name').value,
+                app_name: document.getElementById('app_name').value,
+                slogan: document.getElementById('slogan').value,
+                logo_url: document.getElementById('logo_url').value,
+                bg_image_url: document.getElementById('bg_image_url').value,
+                qrcode_url: document.getElementById('qrcode_url').value,
+                wx_appid: document.getElementById('wx_appid').value,
+                wx_appsecret: document.getElementById('wx_appsecret').value,
+                mp_appid: document.getElementById('mp_appid').value,
+                mp_appsecret: document.getElementById('mp_appsecret').value,
+                ww_corpid: document.getElementById('ww_corpid').value,
+                ww_agentid: document.getElementById('ww_agentid').value,
+                ww_secret: document.getElementById('ww_secret').value,
+                code_expire_seconds: parseInt(document.getElementById('code_expire_seconds').value),
+                code_length: parseInt(document.getElementById('code_length').value)
+            };
+
+            const url = id ? `/admin/api/customer/${id}` : '/admin/api/customer';
+            const method = id ? 'PUT' : 'POST';
+
+            fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(r => r.json()).then(result => {
+                if (result.success) {
+                    showToast(id ? '更新成功' : '创建成功', 'success');
+                    closeModal();
+                    loadData();
+                } else {
+                    showToast(result.message || '操作失败', 'error');
+                }
+            });
+        };
+
+        // 切换状态
+        function toggleStatus(id) {
+            fetch(`/admin/api/customer/${id}/toggle-status`, {
+                method: 'PUT'
+            }).then(r => r.json()).then(result => {
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    loadData();
+                } else {
+                    showToast(result.message || '操作失败', 'error');
+                }
+            });
+        }
+
+        // 删除确认
+        function confirmDelete(id) {
+            deleteId = id;
+            document.getElementById('confirmModal').classList.add('show');
+        }
+
+        function closeConfirm() {
+            deleteId = null;
+            document.getElementById('confirmModal').classList.remove('show');
+        }
+
+        document.getElementById('confirmDelete').onclick = function() {
+            if (!deleteId) return;
+
+            fetch(`/admin/api/customer/${deleteId}`, {
+                method: 'DELETE'
+            }).then(r => r.json()).then(result => {
+                closeConfirm();
+                if (result.success) {
+                    showToast('删除成功', 'success');
+                    loadData();
+                } else {
+                    showToast(result.message || '删除失败', 'error');
+                }
+            });
+        };
+
+        // Toast
+        function showToast(text, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toast.className = `toast ${type}`;
+            toastText.textContent = text;
+
+            if (type === 'success') {
+                toastIcon.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
+            } else {
+                toastIcon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+            }
+
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('editModal').onclick = function(e) {
+            if (e.target === this) closeModal();
+        };
+        document.getElementById('confirmModal').onclick = function(e) {
+            if (e.target === this) closeConfirm();
+        };
+
+        // 初始化
+        loadData();
+    </script>
+</body>
+</html>

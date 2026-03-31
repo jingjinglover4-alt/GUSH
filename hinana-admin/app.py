@@ -279,19 +279,7 @@ def dashboard():
         used_codes = RedeemCode.query.filter_by(status='used').count()
         total_users = UserRecord.query.count()
         active_machines = Machine.query.filter_by(status='online').count()
-        
-        # 管理员查看所有客户的今日数据总和
-        today_stats_list = Stats.query.filter_by(date=today).all()
-        if today_stats_list:
-            # 创建一个虚拟的 today_stats 对象，包含汇总数据
-            class TodayStats:
-                pass
-            today_stats = TodayStats()
-            today_stats.scan_count = sum(s.scan_count for s in today_stats_list)
-            today_stats.claim_count = sum(s.claim_count for s in today_stats_list)
-            today_stats.redeem_count = sum(s.redeem_count for s in today_stats_list)
-        else:
-            today_stats = None
+        today_stats = None
 
     return render_template('dashboard.html',
         total_codes=total_codes,
@@ -672,38 +660,6 @@ def api_update_machine_device_info(machine_id):
     })
 
 
-@app.route(f'{ADMIN_PREFIX}/api/machine/register', methods=['POST'])
-def api_machine_register():
-    """机器注册接口 - 供派样机上位机调用"""
-    data = request.get_json() or {}
-    machine_code = data.get('machine_code', '')
-    imei = data.get('imei', '')
-    firmware = data.get('firmware_version', '')
-    
-    # 查找机器
-    machine = Machine.query.filter_by(machine_code=machine_code).first()
-    if not machine:
-        return jsonify({'success': False, 'message': '机器不存在', 'error': 'MACHINE_NOT_FOUND'}), 404
-    
-    # 更新设备信息
-    machine.imei = imei or machine.imei
-    machine.firmware_version = firmware or machine.firmware_version
-    machine.status = 'online'
-    db.session.commit()
-    
-    # 返回机器配置
-    return jsonify({
-        'success': True,
-        'message': '注册成功',
-        'machine_id': machine.id,
-        'machine_code': machine.machine_code,
-        'config': {
-            'api_url': f'http://150.158.20.232:5001/admin/api',
-            'verify_endpoint': '/redeem/verify'
-        }
-    })
-
-
 @app.route(f'{ADMIN_PREFIX}/api/machine/<int:machine_id>/channels', methods=['GET'])
 def api_get_machine_channels(machine_id):
     """获取机器货道列表"""
@@ -941,24 +897,11 @@ def api_verify_code():
     if redeem_code.status == 'expired' or (redeem_code.expired_at and datetime.now() > redeem_code.expired_at):
         return jsonify({'success': False, 'message': '兑换码已过期'})
 
-    # 验证成功，从库存中查找有货的货道
-    # 查询该机器有库存的货道（current_qty > 0）
-    available_channel = db.session.execute(
-        db.select(Channel).filter(
-            Channel.machine_id == machine.id,
-            Channel.status == 'normal'
-        ).join(Inventory).filter(
-            Inventory.current_qty > 0
-        ).limit(1)
-    ).scalars().first()
-    
-    if not available_channel:
-        return jsonify({'success': False, 'message': '机器无可用货道'})
-    
-    # 标记兑换码已使用
+    # 验证成功，返回发货指令
     redeem_code.status = 'used'
     redeem_code.used_at = datetime.now()
     redeem_code.used_machine_id = machine.id
+    user_phone = db.Column(db.String(20))  # 用户手机号
     db.session.commit()
 
     # 更新统计数据
@@ -971,13 +914,10 @@ def api_verify_code():
         db.session.add(stats)
     db.session.commit()
 
-    # 返回发货指令，包含 slot 字段
     return jsonify({
         'success': True,
         'message': '验证成功',
-        'action': 'dispense',
-        'slot': f'Slot{available_channel.channel_no}',  # 返回 slot 供上位机识别
-        'channel': available_channel.channel_no
+        'action': 'dispense'  # 机器收到此指令后发货
     })
 
 

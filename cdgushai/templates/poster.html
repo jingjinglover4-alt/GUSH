@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扫码领取礼品</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px 30px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        .qr-container {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .qr-code img {
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+        }
+        
+        .steps {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        
+        .step-num {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .step-text {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .tip {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .tip-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 5px;
+        }
+        
+        .tip-text {
+            font-size: 13px;
+            color: #856404;
+        }
+        
+        .footer {
+            margin-top: 25px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎁</div>
+        <h1>扫码领取精美礼品</h1>
+        <p class="subtitle">关注公众号，即刻参与活动</p>
+        
+        <div class="qr-container">
+            <div class="qr-code">
+                <!-- 这里放服务号二维码图片 -->
+                <img src="/static/qrcode.png" alt="服务号二维码" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\'color:#666;font-size:14px;\'>请上传服务号二维码</div>'">
+            </div>
+        </div>
+        
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-text">长按识别上方二维码</div>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-text">关注公众号并回复「领取」</div>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-text">获取专属兑换码</div>
+            </div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-text">在派样机输入兑换码领礼</div>
+            </div>
+        </div>
+        
+        <div class="tip">
+            <div class="tip-title">💡 小提示</div>
+            <div class="tip-text">每台派样机限领一次，礼品数量有限，先到先得哦！</div>
+        </div>
+        
+        <div class="footer">
+            © 2026 派样机 · 让领取更有趣
+        </div>
+    </div>
+</body>
+</html>
