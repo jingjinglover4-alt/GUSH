@@ -1,0 +1,23 @@
+[Unit]
+Description=HI拿派样机控制服务
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hinana-vending
+
+# 环境变量 - 根据实际情况修改
+Environment=DEVICE_IMEI=ORANGEPI-001
+Environment=SERIAL_PORT=/dev/ttyUSB0
+Environment=API_PORT=8080
+Environment=API_TOKEN=hinana-device-token-change-me
+
+ExecStart=/usr/bin/python3 /opt/hinana-vending/local_api.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/hinana-vending/vending.log
+StandardError=append:/opt/hinana-vending/vending.log
+
+[Install]
+WantedBy=multi-user.target
