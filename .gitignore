@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.py.bak
+*.backup
+
+# macOS
+._*
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# 备份和临时文件
+*.bak
+*.tmp
+*.log
+
+# 数据库
+*.db
+
+# 大文件
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.tar.gz
+*.zip
+
+# WorkBuddy
+.workbuddy/
