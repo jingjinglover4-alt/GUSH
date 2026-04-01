@@ -303,10 +303,10 @@ fi
 # 安装Python依赖
 echo "安装Python依赖..."
 if command -v pip3 &> /dev/null; then
-    sudo pip3 install websockets requests pyyaml pyserial
+    sudo pip3 install "python-socketio[asyncio_client]" requests pyyaml pyserial
 else
     echo "警告: pip3未找到，尝试使用pip"
-    sudo pip install websockets requests pyyaml pyserial
+    sudo pip install "python-socketio[asyncio_client]" requests pyyaml pyserial
 fi
 
 # 启用服务

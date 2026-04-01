@@ -76,7 +76,7 @@ sudo bash install-on-orange-pi.sh
 安装脚本将：
 1. 创建目录：`/opt/hinana-vending/`，`/etc/hinana/`
 2. 复制文件到相应位置
-3. 安装Python依赖（websockets, requests, pyyaml, pyserial）
+3. 安装Python依赖（python-socketio[asyncio_client], requests, pyyaml, pyserial）
 4. 启用Systemd服务
 
 ### 4. 配置硬件信息

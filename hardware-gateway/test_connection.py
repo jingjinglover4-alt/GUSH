@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
 硬件网关连接测试脚本
-测试服务器端和硬件的WebSocket连接
+测试服务器端和硬件的Socket.IO连接
 """
 
 import asyncio
-import websockets
+import socketio
 import json
 import time
 import sys
 
 async def test_server_connection():
-    """测试连接服务器硬件网关"""
-    print("测试连接服务器硬件网关...")
+    """测试连接服务器硬件网关（Socket.IO协议）"""
+    print("测试连接服务器硬件网关（Socket.IO）...")
     
-    server_url = "ws://localhost:5003"  # 假设本地测试
+    server_url = "http://localhost:5003"  # Socket.IO使用HTTP URL
     imei = "865709045268307"
     token = "test_token"  # 测试用令牌
     
@@ -24,55 +24,65 @@ async def test_server_connection():
     }
     
     try:
-        async with websockets.connect(
-            server_url,
-            extra_headers=headers,
-            ping_interval=20,
-            ping_timeout=10
-        ) as websocket:
-            print(f"连接成功: {server_url}")
-            
-            # 发送注册消息
-            register_msg = {
-                'type': 'register',
-                'imei': imei,
-                'sn': 'MP0623472DF9B5F',
-                'firmware_version': '1.0.0',
-                'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ')
-            }
-            
-            await websocket.send(json.dumps(register_msg))
-            print("注册消息已发送")
-            
-            # 等待响应
-            try:
-                response = await asyncio.wait_for(websocket.recv(), timeout=5)
-                print(f"收到响应: {response}")
-                
-                # 发送心跳
-                heartbeat_msg = {
-                    'type': 'heartbeat',
-                    'imei': imei,
-                    'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    'status': {'cpu_temp': 45.2, 'signal': -72}
-                }
-                
-                await websocket.send(json.dumps(heartbeat_msg))
-                print("心跳消息已发送")
-                
-                # 接收心跳确认
-                ack = await asyncio.wait_for(websocket.recv(), timeout=5)
-                print(f"心跳确认: {ack}")
-                
-                print("测试通过!")
-                return True
-                
-            except asyncio.TimeoutError:
-                print("响应超时")
-                return False
-                
+        # 创建Socket.IO客户端
+        sio = socketio.AsyncClient()
+        
+        # 连接服务器
+        await sio.connect(server_url, headers=headers, wait_timeout=30)
+        print(f"Socket.IO连接成功: {server_url}")
+        
+        # 定义事件处理
+        @sio.event
+        async def connect():
+            print("Socket.IO连接事件触发")
+        
+        @sio.event
+        async def disconnect():
+            print("Socket.IO断开连接")
+        
+        @sio.on('registered')
+        async def on_registered(data):
+            print(f"注册成功: {data}")
+        
+        @sio.on('heartbeat_ack')
+        async def on_heartbeat_ack(data):
+            print(f"心跳确认: {data}")
+        
+        # 发送注册事件
+        register_data = {
+            'imei': imei,
+            'sn': 'MP0623472DF9B5F',
+            'firmware_version': '1.0.0',
+            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ')
+        }
+        
+        await sio.emit('register', register_data)
+        print("注册事件已发送")
+        
+        # 等待注册响应
+        await asyncio.sleep(2)
+        
+        # 发送心跳事件
+        heartbeat_data = {
+            'imei': imei,
+            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'status': {'cpu_temp': 45.2, 'signal': -72}
+        }
+        
+        await sio.emit('heartbeat', heartbeat_data)
+        print("心跳事件已发送")
+        
+        # 等待心跳确认
+        await asyncio.sleep(2)
+        
+        # 断开连接
+        await sio.disconnect()
+        
+        print("Socket.IO测试通过!")
+        return True
+        
     except Exception as e:
-        print(f"连接失败: {e}")
+        print(f"Socket.IO连接失败: {e}")
         return False
 
 async def test_hardware_agent():

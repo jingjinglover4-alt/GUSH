@@ -2,10 +2,11 @@
 """
 HI拿硬件代理服务
 运行在Orange Pi上，连接4G模块与云端服务器通信
+使用Socket.IO客户端与服务器通信
 """
 
 import asyncio
-import websockets
+import socketio
 import json
 import logging
 import time
@@ -48,7 +49,7 @@ class HardwareAgent:
         self.local_api_url = self.config.get('local_api_url', 'http://localhost:8080')
         
         # 连接状态
-        self.ws = None
+        self.sio = None
         self.connected = False
         self.last_heartbeat = 0
         self.heartbeat_interval = self.config.get('heartbeat_interval', 30)  # 秒
@@ -125,53 +126,103 @@ class HardwareAgent:
         return '865709045268307'
     
     async def connect_to_server(self):
-        """连接服务器WebSocket"""
-        headers = {
-            'X-Hardware-IMEI': self.imei,
-            'X-Auth-Token': self.token
-        }
-        
+        """连接服务器Socket.IO"""
         while True:
             try:
+                # 创建Socket.IO客户端
+                self.sio = socketio.AsyncClient(
+                    reconnection=True,
+                    reconnection_attempts=0,  # 无限重试
+                    reconnection_delay=1,
+                    reconnection_delay_max=60,
+                    randomization_factor=0.5
+                )
+                
+                # 设置事件处理函数
+                self.setup_event_handlers()
+                
+                # 连接服务器
                 logger.info(f"连接服务器: {self.server_url}")
-                self.ws = await websockets.connect(
+                headers = {
+                    'X-Hardware-IMEI': self.imei,
+                    'X-Auth-Token': self.token
+                }
+                
+                await self.sio.connect(
                     self.server_url,
-                    extra_headers=headers,
-                    ping_interval=20,
-                    ping_timeout=10,
-                    close_timeout=1
+                    headers=headers,
+                    wait_timeout=30
                 )
                 
                 self.connected = True
                 logger.info("服务器连接成功")
                 
-                # 发送注册消息
+                # 发送注册事件
                 await self.register_hardware()
                 
-                # 开始监听消息
-                await self.listen_messages()
+                # 等待连接保持（Socket.IO会自动重连）
+                await self.sio.wait()
                 
+            except socketio.exceptions.ConnectionError as e:
+                self.connected = False
+                logger.error(f"Socket.IO连接错误: {e}")
             except Exception as e:
                 self.connected = False
                 logger.error(f"连接服务器失败: {e}")
-                
-                # 指数退避重连
-                wait_time = min(2 ** min(self.get_retry_count(), 6), 60)
-                logger.info(f"{wait_time}秒后重试连接...")
-                await asyncio.sleep(wait_time)
+            
+            # 连接断开，等待后重试
+            wait_time = 5  # 默认等待5秒
+            logger.info(f"{wait_time}秒后重试连接...")
+            await asyncio.sleep(wait_time)
     
-    def get_retry_count(self) -> int:
-        """获取重试次数（简化版）"""
-        # 实际应该持久化存储重试计数
-        return 0
+    def setup_event_handlers(self):
+        """设置Socket.IO事件处理函数"""
+        
+        @self.sio.event
+        async def connect():
+            """连接成功事件"""
+            logger.info("Socket.IO连接成功")
+        
+        @self.sio.event
+        async def disconnect():
+            """断开连接事件"""
+            logger.warning("Socket.IO连接断开")
+            self.connected = False
+        
+        @self.sio.event
+        async def connect_error(data):
+            """连接错误事件"""
+            logger.error(f"Socket.IO连接错误: {data}")
+            self.connected = False
+        
+        @self.sio.on('heartbeat_ack')
+        async def on_heartbeat_ack(data):
+            """心跳确认事件"""
+            self.last_heartbeat = time.time()
+            logger.debug("收到心跳确认")
+        
+        @self.sio.on('command')
+        async def on_command(data):
+            """服务器命令事件"""
+            logger.info(f"收到服务器命令: {data.get('command_type', 'unknown')}")
+            await self.handle_server_command(data)
+        
+        @self.sio.on('registered')
+        async def on_registered(data):
+            """注册成功事件"""
+            logger.info("硬件注册成功")
+        
+        @self.sio.on('*')
+        async def catch_all(event, data):
+            """捕获所有未处理的事件"""
+            logger.debug(f"收到未处理事件: {event}, 数据: {data}")
     
     async def register_hardware(self):
         """向服务器注册硬件"""
-        if not self.ws:
+        if not self.sio or not self.sio.connected:
             return
         
         registration_data = {
-            'type': 'register',
             'imei': self.imei,
             'sn': self.sn,
             'firmware_version': '1.0.0',
@@ -179,48 +230,9 @@ class HardwareAgent:
             'timestamp': datetime.utcnow().isoformat()
         }
         
-        await self.ws.send(json.dumps(registration_data))
+        # 发送注册事件（不是原始消息）
+        await self.sio.emit('register', registration_data)
         logger.info("硬件注册信息已发送")
-    
-    async def listen_messages(self):
-        """监听服务器消息"""
-        try:
-            async for message in self.ws:
-                await self.handle_server_message(message)
-        except websockets.exceptions.ConnectionClosed:
-            logger.warning("WebSocket连接已关闭")
-            self.connected = False
-        except Exception as e:
-            logger.error(f"监听消息时出错: {e}")
-            self.connected = False
-    
-    async def handle_server_message(self, message: str):
-        """处理服务器消息"""
-        try:
-            data = json.loads(message)
-            msg_type = data.get('type')
-            
-            logger.debug(f"收到服务器消息: {msg_type}")
-            
-            if msg_type == 'heartbeat_ack':
-                # 心跳确认
-                self.last_heartbeat = time.time()
-                
-            elif msg_type == 'command':
-                # 服务器命令
-                await self.handle_server_command(data)
-                
-            elif msg_type == 'registered':
-                # 注册成功
-                logger.info("硬件注册成功")
-                
-            else:
-                logger.warning(f"未知消息类型: {msg_type}")
-                
-        except json.JSONDecodeError:
-            logger.error(f"无效的JSON消息: {message}")
-        except Exception as e:
-            logger.error(f"处理消息时出错: {e}")
     
     async def handle_server_command(self, command: Dict[str, Any]):
         """处理服务器命令"""
@@ -251,7 +263,6 @@ class HardwareAgent:
             
             # 发送响应
             response = {
-                'type': 'command_response',
                 'command_id': command_id,
                 'imei': self.imei,
                 'success': result.get('success', False),
@@ -259,21 +270,21 @@ class HardwareAgent:
                 'timestamp': datetime.utcnow().isoformat()
             }
             
-            await self.ws.send(json.dumps(response))
+            # 使用Socket.IO发送command_response事件
+            await self.sio.emit('command_response', response)
             logger.info(f"命令响应已发送: {command_id}")
             
         except Exception as e:
             logger.error(f"执行命令失败: {e}")
             # 发送错误响应
             error_response = {
-                'type': 'command_response',
                 'command_id': command_id,
                 'imei': self.imei,
                 'success': False,
                 'error': str(e),
                 'timestamp': datetime.utcnow().isoformat()
             }
-            await self.ws.send(json.dumps(error_response))
+            await self.sio.emit('command_response', error_response)
     
     async def execute_dispense_command(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """执行出货命令"""
@@ -400,18 +411,18 @@ class HardwareAgent:
         """发送心跳包"""
         while True:
             try:
-                if self.connected and self.ws:
+                if self.connected and self.sio and self.sio.connected:
                     # 更新硬件状态
                     await self.update_hardware_status()
                     
                     heartbeat_data = {
-                        'type': 'heartbeat',
                         'imei': self.imei,
                         'timestamp': datetime.utcnow().isoformat(),
                         'status': self.hardware_status
                     }
                     
-                    await self.ws.send(json.dumps(heartbeat_data))
+                    # 使用Socket.IO发送heartbeat事件
+                    await self.sio.emit('heartbeat', heartbeat_data)
                     logger.debug("心跳包已发送")
                     
             except Exception as e:
@@ -540,9 +551,8 @@ class HardwareAgent:
         getattr(logger, level)(message)
         
         # 发送到服务器（如果连接正常）
-        if self.connected and self.ws:
+        if self.connected and self.sio and self.sio.connected:
             log_data = {
-                'type': 'log',
                 'imei': self.imei,
                 'level': level,
                 'message': message,
@@ -558,7 +568,8 @@ class HardwareAgent:
     async def send_log_async(self, log_data: Dict[str, Any]):
         """异步发送日志"""
         try:
-            await self.ws.send(json.dumps(log_data))
+            # 使用Socket.IO发送log事件
+            await self.sio.emit('log', log_data)
         except:
             pass  # 发送失败时静默处理
 

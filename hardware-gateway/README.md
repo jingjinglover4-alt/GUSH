@@ -284,7 +284,7 @@ def generate_hardware_token(imei, sn, secret):
    2. 检查服务状态：systemctl status hardware-agent
    3. 查看日志：journalctl -u hardware-agent -f
    4. 检查4G模块：lsusb | grep Huawei
-   5. 手动测试连接：python3 -c "import websockets; ..."
+   5. 手动测试连接：python3 -c "import socketio; ..."
    ```
 
 ### 监控命令

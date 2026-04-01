@@ -6,7 +6,7 @@ imei: "865709045268307"  # 4G模块IMEI，自动检测或手动设置
 sn: "MP0623472DF9B5F"    # 序列号
 
 # 服务器连接
-server_url: "wss://cdgushai.com:5003"  # 硬件网关WebSocket地址（SSL启用）
+server_url: "wss://cdgushai.com:5003"  # 硬件网关Socket.IO地址（SSL启用）
 # server_url: "ws://150.158.20.232:5003"  # 开发测试地址（HTTP）
 token: "your_hardware_token_here"        # 从管理后台获取的硬件令牌
 
