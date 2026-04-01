@@ -136,7 +136,8 @@ hardware-agent-package/          # 部署包
    imei: "865709045268307"  # 4G模块IMEI
    sn: "MP0623472DF9B5F"    # 序列号
    token: "hw_abc123def456" # 从管理后台获取
-   server_url: "wss://150.158.20.232:5003"
+   server_url: "wss://cdgushai.com:5003"  # 生产环境
+   # server_url: "ws://150.158.20.232:5003"  # 测试环境（HTTP）
    ```
 
 4. **启动硬件代理**：

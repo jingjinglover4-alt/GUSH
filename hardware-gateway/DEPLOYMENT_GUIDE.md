@@ -110,6 +110,79 @@ sudo systemctl status hardware-agent
 sudo journalctl -u hardware-agent -f
 ```
 
+## 第二部分：硬件令牌管理
+
+### 1. 生成新的硬件令牌
+**重要**：部署前必须为每个硬件生成唯一的令牌，不要使用示例令牌。
+
+在服务器上运行令牌生成脚本：
+
+```bash
+cd /opt/hardware-gateway
+
+# 为硬件生成令牌（使用实际IMEI和SN）
+python3 generate_token.py 865709045268307 MP0623472DF9B5F --redis-url redis://localhost:6379/0
+
+# 或使用自定义参数
+python3 generate_token.py <IMEI> <SN> --secret <your-secret> --expire-days 30 --output-config
+```
+
+**参数说明**：
+- `<IMEI>`：15位数字IMEI（如：865709045268307）
+- `<SN>`：硬件序列号（如：MP0623472DF9B5F）
+- `--secret`：令牌生成密钥（默认：hardware-token-secret-2026）
+- `--expire-days`：令牌有效期（默认：30天）
+- `--output-config`：输出配置文件片段
+
+**输出示例**：
+```
+硬件令牌生成成功!
+==================================================
+IMEI: 865709045268307
+序列号: MP0623472DF9B5F
+令牌: hw_5f8a3c9e1b7d2a4f6c8e9b0a
+有效期: 30天
+Redis键: hardware_token:865709045268307
+```
+
+### 2. 更新硬件配置文件
+在Orange Pi上编辑配置文件 `/etc/hinana/hardware.conf`：
+
+```yaml
+# 硬件标识
+imei: "865709045268307"
+sn: "MP0623472DF9B5F"
+
+# 服务器连接  
+server_url: "wss://cdgushai.com:5003"  # 生产环境（SSL）
+# server_url: "ws://150.158.20.232:5003"  # 测试环境（HTTP）
+token: "hw_5f8a3c9e1b7d2a4f6c8e9b0a"  # ← 替换为生成的令牌
+
+# 本地API配置
+local_api_url: "http://localhost:8080"
+```
+
+### 3. 令牌管理命令
+
+**查看现有令牌**：
+```bash
+redis-cli KEYS 'hardware_token:*'
+redis-cli GET 'hardware_token:865709045268307'
+```
+
+**删除令牌**：
+```bash
+redis-cli DEL 'hardware_token:865709045268307'
+```
+
+**更新令牌**：重新运行生成脚本，会自动覆盖旧令牌。
+
+### 4. 数据库令牌同步
+令牌也会自动保存到SQLite数据库 `hardware_tokens` 表中，可通过管理后台查看：
+```sql
+SELECT imei, serial_number, expires_at FROM hardware_tokens WHERE is_active = 1;
+```
+
 ## 第三部分：验证与测试
 
 ### 1. 检查硬件连接状态
@@ -157,9 +230,11 @@ journalctl -u hardware-agent -f
    - 查看防火墙设置
 
 2. **认证失败**
-   - 确认令牌正确：`hw_6494e75d8dc12fabad4f0c9310`
-   - 检查Redis中令牌是否存在
-   - 验证IMEI和SN匹配
+   - 确认已为硬件生成令牌：`python3 generate_token.py <IMEI> <SN>`
+   - 检查Redis中令牌是否存在：`redis-cli GET 'hardware_token:<IMEI>'`
+   - 验证硬件配置文件中的令牌与Redis中一致
+   - 确认IMEI和SN匹配
+   - 令牌可能已过期（默认30天），重新生成令牌
 
 3. **串口通信失败**
    - 检查设备权限：`ls -la /dev/ttyUSB*`
