@@ -6,7 +6,7 @@ imei: "865709045268307"  # 4G模块IMEI，自动检测或手动设置
 sn: "MP0623472DF9B5F"    # 序列号
 
 # 服务器连接
-server_url: "wss://150.158.20.232:5003"  # 硬件网关WebSocket地址
+server_url: "ws://150.158.20.232:8003"  # 硬件网关WebSocket地址（暂未启用SSL）
 token: "your_hardware_token_here"        # 从管理后台获取的硬件令牌
 
 # 本地API配置
@@ -24,7 +24,7 @@ modem_device: "/dev/ttyUSB2"  # 华为E8372模块设备路径
 baud_rate: 115200
 
 # STM32串口配置
-stm32_device: "/dev/ttyAMA0"
+stm32_device: "/dev/ttyUSB0"
 stm32_baud: 115200
 
 # 网络监测

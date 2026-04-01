@@ -93,7 +93,7 @@ sudo nano /etc/hinana/hardware.conf
 
 重要检查项：
 - `modem_device` - 4G模块设备路径（默认`/dev/ttyUSB2`）
-- `stm32_device` - STM32串口设备路径（默认`/dev/ttyAMA0`）
+- `stm32_device` - STM32串口设备路径（默认`/dev/ttyUSB0`）
 
 ### 5. 启动服务
 ```bash

@@ -24,7 +24,7 @@ modem_device: "/dev/ttyUSB2"  # 华为E8372模块设备路径
 baud_rate: 115200
 
 # STM32串口配置
-stm32_device: "/dev/ttyAMA0"
+stm32_device: "/dev/ttyUSB0"
 stm32_baud: 115200
 
 # 网络监测

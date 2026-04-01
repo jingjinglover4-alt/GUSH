@@ -37,16 +37,21 @@ class HardwareAgent:
         self.imei = self.config.get('imei', '')
         self.sn = self.config.get('sn', '')
         self.token = self.config.get('token', '')
-        self.server_url = self.config.get('server_url', 'wss://150.158.20.232:5003')
+        self.server_url = self.config.get('server_url', 'ws://150.158.20.232:8003')
+        
+        # 串口配置
+        self.modem_device = self.config.get('modem_device', '/dev/ttyUSB2')
+        self.stm32_device = self.config.get('stm32_device', '/dev/ttyUSB0')
+        self.baud_rate = self.config.get('baud_rate', 115200)
         
         # 本地API地址（现有的local_api.py）
-        self.local_api_url = 'http://localhost:8080'
+        self.local_api_url = self.config.get('local_api_url', 'http://localhost:8080')
         
         # 连接状态
         self.ws = None
         self.connected = False
         self.last_heartbeat = 0
-        self.heartbeat_interval = 30  # 秒
+        self.heartbeat_interval = self.config.get('heartbeat_interval', 30)  # 秒
         
         # 命令队列
         self.command_queue = queue.Queue()
@@ -68,10 +73,14 @@ class HardwareAgent:
             'imei': '865709045268307',  # 默认值，从4G模块读取
             'sn': 'MP0623472DF9B5F',
             'token': '',  # 需要从管理后台获取
-            'server_url': 'wss://150.158.20.232:5003',
-            'local_api_port': 8080,
+            'server_url': 'ws://150.158.20.232:8003',  # 硬件网关地址（HTTP）
+            'local_api_url': 'http://localhost:8080',  # 本地API地址
+            'local_api_port': 8080,  # 兼容旧配置
             'heartbeat_interval': 30,
-            'log_level': 'INFO'
+            'log_level': 'INFO',
+            'modem_device': '/dev/ttyUSB2',  # 4G模块设备路径
+            'stm32_device': '/dev/ttyUSB0',  # STM32串口设备路径
+            'baud_rate': 115200  # 串口波特率
         }
         
         # 尝试从文件加载配置
@@ -97,7 +106,7 @@ class HardwareAgent:
         try:
             # 尝试通过AT命令读取IMEI
             import serial
-            ser = serial.Serial('/dev/ttyUSB2', 115200, timeout=1)
+            ser = serial.Serial(self.modem_device, self.baud_rate, timeout=1)
             ser.write(b'AT+CGSN\r\n')
             time.sleep(0.5)
             response = ser.read_all().decode('utf-8', errors='ignore')
@@ -475,7 +484,7 @@ class HardwareAgent:
         try:
             # 尝试从4G模块读取信号强度
             import serial
-            ser = serial.Serial('/dev/ttyUSB2', 115200, timeout=1)
+            ser = serial.Serial(self.modem_device, self.baud_rate, timeout=1)
             ser.write(b'AT+CSQ\r\n')
             time.sleep(0.5)
             response = ser.read_all().decode('utf-8', errors='ignore')
@@ -503,7 +512,7 @@ class HardwareAgent:
         try:
             # 尝试发送测试命令到STM32
             import serial
-            ser = serial.Serial('/dev/ttyAMA0', 115200, timeout=1)
+            ser = serial.Serial(self.stm32_device, self.baud_rate, timeout=1)
             ser.write(b'TEST\n')
             time.sleep(0.1)
             response = ser.read_all()
