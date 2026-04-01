@@ -501,6 +501,87 @@ def record_scan():
         return jsonify({'code': 500, 'message': '服务器繁忙', 'data': None})
 
 
+@app.route('/api/query_codes_by_phone', methods=['POST'])
+def query_codes_by_phone():
+    """根据手机号查询历史兑换码"""
+    try:
+        data = request.get_json() or {}
+        phone = str(data.get('phone', '')).strip()
+
+        if not phone:
+            return jsonify({'code': 400, 'message': '请提供手机号', 'data': None})
+
+        # 基本手机号格式验证
+        if not (len(phone) == 11 and phone.isdigit() and phone.startswith('1')):
+            return jsonify({'code': 400, 'message': '手机号格式不正确', 'data': None})
+
+        conn = get_db()
+        try:
+            cursor = conn.cursor()
+            # 查询该手机号的所有兑换码，按创建时间倒序排列
+            cursor.execute(
+                """SELECT 
+                    code, 
+                    status, 
+                    created_at, 
+                    expired_at, 
+                    used_at,
+                    customer_id
+                   FROM redeem_codes 
+                   WHERE user_phone = ? 
+                   ORDER BY created_at DESC
+                   LIMIT 20""",  # 限制最多返回20条记录，防止数据过多
+                (phone,)
+            )
+            rows = cursor.fetchall()
+
+            if not rows:
+                return jsonify({
+                    'code': 404,
+                    'message': '该手机号未领取过兑换码',
+                    'data': []
+                })
+
+            now = datetime.now()
+            codes = []
+            for row in rows:
+                # 检查兑换码是否已过期
+                status = row['status']
+                can_use = False
+                
+                if status == 'active':
+                    # 检查是否真的未过期
+                    expire_time = datetime.strptime(row['expired_at'], '%Y-%m-%d %H:%M:%S')
+                    if now > expire_time:
+                        status = 'expired'
+                    else:
+                        can_use = True
+
+                codes.append({
+                    'code': row['code'],
+                    'status': status,
+                    'created_at': row['created_at'],
+                    'expired_at': row['expired_at'] if row['expired_at'] else '',
+                    'used_at': row['used_at'] if row['used_at'] else '',
+                    'can_use': can_use
+                })
+
+            # 手机号脱敏显示
+            masked_phone = phone[:3] + '****' + phone[-4:]
+            
+            return jsonify({
+                'code': 200,
+                'message': f'查询成功 - {masked_phone}',
+                'data': codes
+            })
+        finally:
+            conn.close()
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'code': 500, 'message': '服务器繁忙', 'data': None})
+
+
 if __name__ == '__main__':
     init_miniapp_tables()
     port = int(os.environ.get('PORT', 5002))

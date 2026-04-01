@@ -617,6 +617,181 @@
     }
 
     /* ══════════════════════════════════════
+       兑换码查询区域
+    ══════════════════════════════════════ */
+    .query-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 2px solid var(--tech-blue);
+      box-shadow: 0 4px 20px rgba(0,212,255,0.15);
+      overflow: hidden;
+      margin-top: 24px;
+    }
+
+    .query-card-title {
+      background: linear-gradient(135deg, #f0fdff, #fff);
+      padding: 14px 16px;
+      text-align: center;
+      border-bottom: 1px solid #d8f7ff;
+    }
+
+    .query-card-title h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--tech-blue);
+      margin-bottom: 2px;
+    }
+
+    .query-card-title p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .query-card-body {
+      padding: 18px 16px;
+    }
+
+    .query-input-group {
+      margin-bottom: 0;
+    }
+
+    .query-input-wrapper {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .query-input-field {
+      flex: 1;
+      height: 42px;
+      background: #fff;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0 14px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .query-input-field:focus {
+      border-color: var(--tech-blue);
+      box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+    }
+
+    .query-input-field::placeholder {
+      color: #bbb;
+    }
+
+    .query-button {
+      height: 42px;
+      padding: 0 20px;
+      background: linear-gradient(135deg, var(--tech-blue), var(--tech-purple));
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,212,255,0.3);
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .query-button:active {
+      transform: scale(0.97);
+      opacity: 0.9;
+    }
+
+    .query-results {
+      margin-top: 16px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .query-result-card {
+      background: #f9fdff;
+      border-radius: 8px;
+      border: 1px solid #d8f7ff;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+
+    .query-result-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .query-result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .query-code {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 2px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .query-status {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 12px;
+    }
+
+    .status-active {
+      background: #e8f7e8;
+      color: #2e7d32;
+    }
+
+    .status-used {
+      background: #fff5f5;
+      color: #c62828;
+    }
+
+    .status-expired {
+      background: #f5f5f5;
+      color: #757575;
+    }
+
+    .query-details {
+      font-size: 12px;
+      color: var(--text-light);
+      line-height: 1.5;
+    }
+
+    .query-details-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .query-details-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .query-no-results {
+      text-align: center;
+      padding: 24px 16px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .query-no-results-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+      color: #ddd;
+    }
+
+    /* ══════════════════════════════════════
        兑换码页
     ══════════════════════════════════════ */
     .code-page {
@@ -1055,6 +1230,26 @@
         </div>
 
         <button class="submit-button" id="submitBtn" onclick="submitForm()" disabled>立即领取</button>
+
+        <!-- 兑换码查询区域 -->
+        <div class="query-card" style="margin-top: 24px;">
+          <div class="query-card-title">
+            <h4>兑换码查询</h4>
+            <p>忘记兑换码？输入手机号查询</p>
+          </div>
+          <div class="query-card-body">
+            <div class="query-input-group">
+              <div class="query-input-wrapper">
+                <input class="query-input-field" id="queryPhoneInput" type="tel" placeholder="输入领取时使用的手机号" maxlength="11">
+                <button class="query-button" id="queryBtn" onclick="queryCodes()">查询</button>
+              </div>
+            </div>
+            
+            <div class="query-results" id="queryResults" style="display: none;">
+              <!-- 查询结果动态填充 -->
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1169,22 +1364,62 @@
 
   // 中国手机号段正则（支持号段见下方列表）
   const PHONE_REGEX = /^1(3(4[0-8]|[3-9]\d)|4[5-9]|5[0-3,7-9]|6[1-6,7]|7[0-8]|8[2-3,7-9]|9[5-9])\d{8}$/;
+  // 宽松的手机号验证：11位数字，以1开头
+  const PHONE_REGEX_LOOSE = /^1\d{10}$/;
 
   // 验证姓名：只能是汉字，2-20个字符
   function validateName(name) {
-    return /^[\u4e00-\u9fa5]{2,20}$/.test(name);
+    const isValid = /^[\u4e00-\u9fa5]{2,20}$/.test(name);
+    console.log('validateName:', name, '长度:', name.length, '有效:', isValid);
+    if (!isValid && name.length > 0) {
+      console.log('  姓名验证失败原因:');
+      console.log('    包含非汉字字符:', name.replace(/[\u4e00-\u9fa5]/g, ''));
+      console.log('    长度检查:', name.length >= 2 && name.length <= 20);
+    }
+    return isValid;
   }
 
-  // 验证手机号：11位且符合号段规则
+  // 验证手机号：11位且符合号段规则（使用宽松验证）
   function validatePhone(phone) {
-    return PHONE_REGEX.test(phone);
+    // 先尝试严格验证，如果失败使用宽松验证
+    if (PHONE_REGEX.test(phone)) {
+      console.log('手机号严格验证通过:', phone);
+      return true;
+    }
+    // 宽松验证：11位数字，以1开头
+    const looseValid = PHONE_REGEX_LOOSE.test(phone);
+    console.log('手机号严格验证失败，宽松验证结果:', phone, looseValid);
+    return looseValid;
   }
 
   // 实时验证并提示
+  let isComposing = false;
+  
+  document.getElementById('nameInput').addEventListener('compositionstart', function() {
+    isComposing = true;
+  });
+  
+  document.getElementById('nameInput').addEventListener('compositionend', function() {
+    isComposing = false;
+    // 组合结束后触发一次过滤：删除所有非汉字字符
+    const value = this.value;
+    const filteredValue = value.replace(/[^\u4e00-\u9fa5]/g, '');
+    
+    if (filteredValue !== value) {
+      this.value = filteredValue;
+    }
+    checkForm();
+  });
+  
   document.getElementById('nameInput').addEventListener('input', function(e) {
+    if (isComposing) return;
+    
     const value = e.target.value;
-    // 过滤：只保留汉字
-    e.target.value = value.replace(/[a-zA-Z0-9]/g, '');
+    const filteredValue = value.replace(/[^\u4e00-\u9fa5]/g, '');
+    
+    if (filteredValue !== value) {
+      this.value = filteredValue;
+    }
     checkForm();
   });
 
@@ -1205,11 +1440,17 @@
     const nameValid = validateName(name);
     const phoneValid = validatePhone(phone);
     const valid = nameValid && phoneValid && agreed;
+    console.log('checkForm验证结果:');
+    console.log('  姓名:', name, '长度:', name.length, '有效:', nameValid);
+    console.log('  手机:', phone, '长度:', phone.length, '有效:', phoneValid);
+    console.log('  同意:', agreed);
+    console.log('  整体有效:', valid);
     document.getElementById('submitBtn').disabled = !valid;
   }
 
   function toggleAgree() {
     agreed = !agreed;
+    console.log('同意复选框切换，新状态:', agreed);
     const el = document.getElementById('agreeCheck');
     el.className = 'agreement-checkbox' + (agreed ? ' checked' : '');
     el.textContent = agreed ? '✓' : '';
@@ -1336,6 +1577,135 @@
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 2000);
   }
+
+  async function queryCodes() {
+    const phoneInput = document.getElementById('queryPhoneInput');
+    const phone = phoneInput.value.trim();
+    
+    // 基本手机号验证
+    if (!phone || phone.length !== 11 || !phone.startsWith('1') || !/^\d+$/.test(phone)) {
+      showToast('请输入正确的11位手机号');
+      return;
+    }
+    
+    showLoading();
+    
+    try {
+      const res = await fetch(API + '/query_codes_by_phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      
+      const data = await res.json();
+      hideLoading();
+      
+      const resultsContainer = document.getElementById('queryResults');
+      resultsContainer.innerHTML = '';
+      
+      if (data.code === 200) {
+        const codes = data.data;
+        
+        if (codes.length === 0) {
+          resultsContainer.innerHTML = `
+            <div class="query-no-results">
+              <div class="query-no-results-icon">&#128221;</div>
+              <p>该手机号未领取过兑换码</p>
+            </div>
+          `;
+        } else {
+          // 显示查询到的兑换码列表
+          codes.forEach(code => {
+            // 确定状态文本和样式类
+            let statusText = '未知';
+            let statusClass = '';
+            
+            if (code.status === 'active') {
+              statusText = '可用';
+              statusClass = 'status-active';
+            } else if (code.status === 'used') {
+              statusText = '已使用';
+              statusClass = 'status-used';
+            } else if (code.status === 'expired') {
+              statusText = '已过期';
+              statusClass = 'status-expired';
+            }
+            
+            // 格式化时间
+            const formatTime = (timeStr) => {
+              if (!timeStr) return '-';
+              return timeStr.replace(' ', ' ').substring(0, 16);
+            };
+            
+            const card = document.createElement('div');
+            card.className = 'query-result-card';
+            card.innerHTML = `
+              <div class="query-result-header">
+                <div class="query-code">${code.code}</div>
+                <div class="query-status ${statusClass}">${statusText}</div>
+              </div>
+              <div class="query-details">
+                <div class="query-details-item">
+                  <span>领取时间:</span>
+                  <span>${formatTime(code.created_at)}</span>
+                </div>
+                <div class="query-details-item">
+                  <span>过期时间:</span>
+                  <span>${formatTime(code.expired_at)}</span>
+                </div>
+                ${code.used_at ? `<div class="query-details-item">
+                  <span>使用时间:</span>
+                  <span>${formatTime(code.used_at)}</span>
+                </div>` : ''}
+                ${code.status === 'active' ? `<div class="query-details-item">
+                  <span>当前状态:</span>
+                  <span style="color: #2e7d32; font-weight: 600;">可前往派样机使用</span>
+                </div>` : ''}
+              </div>
+            `;
+            resultsContainer.appendChild(card);
+          });
+        }
+        
+        // 显示结果区域
+        resultsContainer.style.display = 'block';
+        
+      } else {
+        // API返回错误
+        resultsContainer.innerHTML = `
+          <div class="query-no-results">
+            <div class="query-no-results-icon">&#128721;</div>
+            <p>${data.message || '查询失败'}</p>
+          </div>
+        `;
+        resultsContainer.style.display = 'block';
+      }
+    } catch (err) {
+      hideLoading();
+      showToast('网络错误，请稍后重试');
+      console.error('查询兑换码失败:', err);
+    }
+  }
+
+  // 页面加载完成后初始化
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('页面加载完成，初始化checkForm');
+    checkForm();
+    
+    // 为查询手机号输入框添加输入过滤（与领取手机号输入框一致）
+    const queryPhoneInput = document.getElementById('queryPhoneInput');
+    if (queryPhoneInput) {
+      queryPhoneInput.addEventListener('input', function(e) {
+        const value = e.target.value;
+        // 过滤：只保留数字
+        e.target.value = value.replace(/\D/g, '');
+        // 限制11位
+        if (e.target.value.length > 11) {
+          e.target.value = e.target.value.slice(0, 11);
+        }
+      });
+    }
+  });
 </script>
 </body>
 </html>

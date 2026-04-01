@@ -1055,6 +1055,7 @@ def api_verify_code():
     
     # 循环查找有库存的货道
     found_channel = None
+    selected_inventory = None
     for offset in range(1, 61):  # 最多尝试60次
         try_index = (current_index + offset) % 60
         target_channel_no = index_to_channel_no(try_index)
@@ -1066,6 +1067,7 @@ def api_verify_code():
             inventory = Inventory.query.filter_by(channel_id=channel.id).first()
             if inventory and inventory.current_qty > 0:
                 found_channel = channel
+                selected_inventory = inventory
                 machine_last_channel_index[machine.id] = try_index
                 break
     
@@ -1094,6 +1096,11 @@ def api_verify_code():
         dispensed_at=datetime.now()
     )
     db.session.add(dispense_log)
+    
+    # 减少库存
+    if selected_inventory:
+        selected_inventory.current_qty -= 1
+        db.session.add(selected_inventory)  # 确保SQLAlchemy跟踪更改
     
     # 更新统计数据
     today = datetime.now().date()

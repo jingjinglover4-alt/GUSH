@@ -58,6 +58,8 @@ verify_fixed.sql
 
 # 备份和配置
 backup_h5_query/
+backup/
+code_backup_*/
 cdgushai.com.conf
 vending.conf
 hinana-admin.tar.gz
