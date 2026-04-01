@@ -1,0 +1,25 @@
+[Unit]
+Description=HI拿硬件代理服务
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hinana-vending
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/hinana-vending/hardware_agent.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# 安全配置
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/hinana-vending /var/log
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

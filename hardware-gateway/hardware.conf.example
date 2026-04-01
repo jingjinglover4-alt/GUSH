@@ -1,0 +1,36 @@
+# HI拿硬件代理配置示例
+# 保存为 /etc/hinana/hardware.conf
+
+# 硬件标识
+imei: "865709045268307"  # 4G模块IMEI，自动检测或手动设置
+sn: "MP0623472DF9B5F"    # 序列号
+
+# 服务器连接
+server_url: "wss://150.158.20.232:5003"  # 硬件网关WebSocket地址
+token: "your_hardware_token_here"        # 从管理后台获取的硬件令牌
+
+# 本地API配置
+local_api_url: "http://localhost:8080"   # 现有的local_api.py服务
+
+# 心跳间隔（秒）
+heartbeat_interval: 30
+
+# 日志配置
+log_level: "INFO"
+log_file: "/var/log/hardware-agent.log"
+
+# 4G模块配置（可选）
+modem_device: "/dev/ttyUSB2"  # 华为E8372模块设备路径
+baud_rate: 115200
+
+# STM32串口配置
+stm32_device: "/dev/ttyAMA0"
+stm32_baud: 115200
+
+# 网络监测
+signal_check_interval: 60  # 信号检查间隔（秒）
+
+# 高级配置
+reconnect_max_wait: 60     # 最大重连等待时间（秒）
+command_timeout: 30        # 命令超时时间（秒")
+enable_debug: false        # 启用调试模式
