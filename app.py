@@ -35,10 +35,18 @@ class Admin(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     def set_password(self, password):
-        self.password_hash = hashlib.sha256(password.encode()).hexdigest()
-
+        self.password_hash = generate_password_hash(password)
+    
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        # 先尝试标准的check_password_hash（支持scrypt和pbkdf2）
+        if check_password_hash(self.password_hash, password):
+            return True
+        # 向后兼容：如果密码哈希是旧的SHA256格式，也允许验证
+        # SHA256哈希是64位十六进制字符串
+        if len(self.password_hash) == 64 and all(c in '0123456789abcdefABCDEF' for c in self.password_hash):
+            import hashlib
+            return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
+        return False
 
 
 class Customer(db.Model):
@@ -251,14 +259,31 @@ def login():
     data = request.get_json()
     username = data.get('username', '').strip()
     password = data.get('password', '')
+    login_type = data.get('login_type', '').strip().lower()  # 'admin' 或 'merchant'
 
     admin = Admin.query.filter_by(username=username).first()
 
     if admin and admin.check_password(password):
+        # 检查登录类型是否匹配
+        if login_type:
+            if login_type == 'admin':
+                # 管理员登录：必须是admin角色
+                if admin.role != 'admin':
+                    return jsonify({'success': False, 'message': '该账号不是超级管理员账号'})
+            elif login_type == 'merchant':
+                # 商户登录：必须是customer角色且有customer_id
+                if admin.role != 'customer':
+                    return jsonify({'success': False, 'message': '该账号不是商户账号'})
+                if not admin.customer_id:
+                    return jsonify({'success': False, 'message': '商户账号未关联客户，请联系管理员'})
+            else:
+                return jsonify({'success': False, 'message': '无效的登录类型'})
+        
         session['admin_id'] = admin.id
         session['admin_name'] = admin.username
         session['customer_id'] = admin.customer_id
         session['role'] = admin.role
+        session['login_type'] = login_type if login_type else 'auto'
         return jsonify({'success': True, 'message': '登录成功'})
 
     return jsonify({'success': False, 'message': '用户名或密码错误'})

@@ -75,12 +75,49 @@
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
         }
 
+        .login-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .login-tab {
+            flex: 1;
+            text-align: center;
+            padding: 14px 10px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            letter-spacing: 1px;
+        }
+
+        .login-tab.active {
+            background: linear-gradient(135deg, #C41E3A 0%, #a01830 100%);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.3);
+        }
+
+        .login-tab:hover:not(.active) {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         .login-title {
             font-size: 1.3rem;
             color: #fff;
             text-align: center;
             margin-bottom: 30px;
             font-weight: 500;
+        }
+
+        .login-form {
+            transition: all 0.3s ease;
         }
 
         .form-group {
@@ -177,16 +214,42 @@
         </div>
 
         <div class="login-card">
-            <div class="login-title">管理员登录</div>
-
-            <div class="form-group">
-                <label class="form-label">账号</label>
-                <input type="text" class="form-input" id="username" placeholder="请输入管理员账号" autocomplete="off">
+            <div class="login-title">HI拿智能派样系统</div>
+            
+            <!-- 身份选择标签页 -->
+            <div class="login-tabs">
+                <div class="login-tab active" id="tabAdmin" onclick="switchTab('admin')">
+                    🏢 超级管理员
+                </div>
+                <div class="login-tab" id="tabMerchant" onclick="switchTab('merchant')">
+                    🏪 SaaS商户
+                </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">密码</label>
-                <input type="password" class="form-input" id="password" placeholder="请输入密码">
+            <!-- 管理员登录表单 -->
+            <div id="adminForm" class="login-form">
+                <div class="form-group">
+                    <label class="form-label">管理员账号</label>
+                    <input type="text" class="form-input" id="adminUsername" placeholder="请输入超级管理员账号" autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="adminPassword" placeholder="请输入密码">
+                </div>
+            </div>
+
+            <!-- 商户登录表单 -->
+            <div id="merchantForm" class="login-form" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">商户账号</label>
+                    <input type="text" class="form-input" id="merchantUsername" placeholder="请输入商户账号" autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="merchantPassword" placeholder="请输入密码">
+                </div>
             </div>
 
             <button class="login-btn" id="loginBtn" onclick="doLogin()">登 录</button>
@@ -200,6 +263,33 @@
     </div>
 
     <script>
+        // 当前登录类型：'admin' 或 'merchant'
+        let currentLoginType = 'admin';
+
+        // 切换标签页
+        function switchTab(type) {
+            currentLoginType = type;
+            
+            // 更新标签页样式
+            document.getElementById('tabAdmin').classList.remove('active');
+            document.getElementById('tabMerchant').classList.remove('active');
+            document.getElementById('adminForm').style.display = 'none';
+            document.getElementById('merchantForm').style.display = 'none';
+            
+            if (type === 'admin') {
+                document.getElementById('tabAdmin').classList.add('active');
+                document.getElementById('adminForm').style.display = 'block';
+                document.title = 'HI拿 - 超级管理员登录';
+            } else {
+                document.getElementById('tabMerchant').classList.add('active');
+                document.getElementById('merchantForm').style.display = 'block';
+                document.title = 'HI拿 - SaaS商户登录';
+            }
+            
+            // 清空错误消息
+            document.getElementById('errorMsg').textContent = '';
+        }
+
         // 回车登录
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -208,8 +298,17 @@
         });
 
         function doLogin() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
+            let username, password;
+            
+            // 根据当前类型获取对应的表单值
+            if (currentLoginType === 'admin') {
+                username = document.getElementById('adminUsername').value.trim();
+                password = document.getElementById('adminPassword').value;
+            } else {
+                username = document.getElementById('merchantUsername').value.trim();
+                password = document.getElementById('merchantPassword').value;
+            }
+            
             const btn = document.getElementById('loginBtn');
             const errorMsg = document.getElementById('errorMsg');
 
@@ -222,10 +321,15 @@
             btn.textContent = '登录中...';
             errorMsg.textContent = '';
 
+            // 发送登录请求，包含登录类型
             fetch('/admin/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username, password})
+                body: JSON.stringify({
+                    username, 
+                    password,
+                    login_type: currentLoginType  // 'admin' 或 'merchant'
+                })
             })
             .then(res => res.json())
             .then(data => {
@@ -243,6 +347,11 @@
                 btn.textContent = '登 录';
             });
         }
+
+        // 页面加载时默认选择管理员标签
+        document.addEventListener('DOMContentLoaded', function() {
+            switchTab('admin');
+        });
     </script>
 </body>
 </html>

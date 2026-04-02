@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日工作计划与反思系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .date-section {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .current-date {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .last-submission {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 40px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-control.small {
+            min-height: 60px;
+        }
+        
+        .management-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .progress-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 0 40px 40px;
+        }
+        
+        .progress-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .progress-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .progress-category {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .progress-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-incomplete {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .progress-content {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 20px;
+            padding: 0 40px 40px;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: #28a745;
+        }
+        
+        .notification.error {
+            background: #dc3545;
+        }
+        
+        .quote {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            margin-top: 20px;
+            padding: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .score {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 每日工作计划与反思系统</h1>
+            <div class="subtitle">强迫思考 · 改变习惯 · 跟踪进度 · 持续成长</div>
+        </div>
+        
+        <div class="date-section">
+            <div class="current-date" id="currentDate">2026年4月2日 星期四</div>
+            <div class="last-submission" id="lastSubmission">上次提交：无记录</div>
+        </div>
+        
+        <div class="main-content">
+            <div class="section">
+                <h2 class="section-title">📝 今日工作内容</h2>
+                <div class="form-group">
+                    <label for="todayWork">已完成的工作：</label>
+                    <textarea class="form-control" id="todayWork" placeholder="详细描述今天完成的工作内容，每项用 • 开头"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="todayAchievements">关键成果：</label>
+                    <textarea class="form-control small" id="todayAchievements" placeholder="今天最重要的3个成果"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="todayChallenges">遇到的挑战：</label>
+                    <textarea class="form-control small" id="todayChallenges" placeholder="今天遇到的主要困难和挑战"></textarea>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🎯 明日工作计划</h2>
+                <div class="form-group">
+                    <label for="tomorrowPlan">计划工作：</label>
+                    <textarea class="form-control" id="tomorrowPlan" placeholder="明天计划完成的工作，按优先级排序"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="tomorrowGoals">目标设定（SMART原则）：</label>
+                    <textarea class="form-control small" id="tomorrowGoals" placeholder="Specific（具体）Measurable（可衡量）Achievable（可实现）Relevant（相关）Time-bound（有时限）"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="tomorrowRisks">预见的风险：</label>
+                    <textarea class="form-control small" id="tomorrowRisks" placeholder="明天可能遇到的风险和应对措施"></textarea>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">💭 今日深度思考</h2>
+                <div class="form-group">
+                    <label for="todayReflection">收获与感悟：</label>
+                    <textarea class="form-control" id="todayReflection" placeholder="今天学到的最重要的一课是什么？有什么新的认知？"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="improvementIdeas">改进想法：</label>
+                    <textarea class="form-control small" id="improvementIdeas" placeholder="如果重新做今天的工作，会有什么不同的做法？"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="gratitude">感恩与认可：</label>
+                    <textarea class="form-control small" id="gratitude" placeholder="今天要感谢谁？为什么？"></textarea>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🏢 管理学视角</h2>
+                <div class="management-grid">
+                    <div class="form-group">
+                        <label for="timeManagement">时间管理矩阵：</label>
+                        <textarea class="form-control small" id="timeManagement" placeholder="紧急重要矩阵 - 今天时间分配是否合理？"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="priorityMatrix">优先级矩阵：</label>
+                        <textarea class="form-control small" id="priorityMatrix" placeholder="Eisenhower矩阵 - 任务优先级评估"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="stakeholder">干系人管理：</label>
+                        <textarea class="form-control small" id="stakeholder" placeholder="今天与哪些干系人互动？沟通效果如何？"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="decisionMaking">决策质量：</label>
+                        <textarea class="form-control small" id="decisionMaking" placeholder="今天的重要决策是否基于数据和逻辑？"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="teamCollaboration">团队协作：</label>
+                        <textarea class="form-control small" id="teamCollaboration" placeholder="团队合作中的亮点和改进点"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="leadership">领导力体现：</label>
+                        <textarea class="form-control small" id="leadership" placeholder="今天在哪些方面展现了领导力？"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="progress-section">
+            <h2 class="progress-title">📈 进度跟踪与比较</h2>
+            <div id="progressContainer">
+                <!-- 进度项目将通过JavaScript动态生成 -->
+            </div>
+        </div>
+        
+        <div class="quote" id="dailyQuote">
+            "成功不是最终目的，失败也并非致命；重要的是继续前进的勇气。" – 温斯顿·丘吉尔
+        </div>
+        
+        <div class="buttons">
+            <button class="btn btn-secondary" onclick="loadPreviousDay()">📂 加载昨日数据</button>
+            <button class="btn btn-secondary" onclick="analyzeProgress()">📊 分析进度差异</button>
+            <button class="btn btn-primary" onclick="saveData()">💾 保存今日数据</button>
+            <button class="btn btn-primary" onclick="exportData()">📤 导出报告</button>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // 数据存储键名
+        const STORAGE_KEY = 'daily_work_plan_data';
+        const QUOTE_KEY = 'daily_work_plan_quote';
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDateTime();
+            loadQuote();
+            loadLastSubmission();
+            checkYesterdayData();
+            setupAutoSave();
+        });
+        
+        // 更新日期时间
+        function updateDateTime() {
+            const now = new Date();
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
+            };
+            document.getElementById('currentDate').textContent = 
+                now.toLocaleDateString('zh-CN', options);
+            
+            // 如果超过晚上8点，显示提醒
+            if (now.getHours() >= 20) {
+                showNotification('⚠️ 记得填写今日工作总结！', 'error');
+            }
+        }
+        
+        // 加载每日名言
+        function loadQuote() {
+            const quotes = [
+                "成功不是最终目的，失败也并非致命；重要的是继续前进的勇气。 – 温斯顿·丘吉尔",
+                "优秀的管理者把时间花在重要但不紧急的事情上。 – 史蒂芬·柯维",
+                "计划本身并不重要，重要的是计划的过程。 – 德怀特·艾森豪威尔",
+                "不要用战术的勤奋，掩盖战略的懒惰。 – 雷军",
+                "衡量工作成效的标准不是忙碌程度，而是成果的质量。 – 彼得·德鲁克",
+                "每天进步1%，一年后你会进步37倍。 – 詹姆斯·克利尔",
+                "问题不是问题，如何应对才是问题。 – 弗吉尼亚·萨提亚",
+                "最危险的时刻是当你取得成功的时候。 – 马云"
+            ];
+            
+            const today = new Date().toDateString();
+            const stored = localStorage.getItem(QUOTE_KEY);
+            
+            if (stored) {
+                const data = JSON.parse(stored);
+                if (data.date === today) {
+                    document.getElementById('dailyQuote').textContent = data.quote;
+                    return;
+                }
+            }
+            
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            document.getElementById('dailyQuote').textContent = randomQuote;
+            
+            localStorage.setItem(QUOTE_KEY, JSON.stringify({
+                date: today,
+                quote: randomQuote
+            }));
+        }
+        
+        // 加载上次提交记录
+        function loadLastSubmission() {
+            const data = loadAllData();
+            if (data.length > 0) {
+                const last = data[data.length - 1];
+                const lastDate = new Date(last.date).toLocaleDateString('zh-CN');
+                document.getElementById('lastSubmission').textContent = 
+                    `上次提交：${lastDate} ${last.time || ''}`;
+            }
+        }
+        
+        // 检查昨日数据
+        function checkYesterdayData() {
+            const today = new Date().toDateString();
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toDateString();
+            
+            const data = loadAllData();
+            const yesterdayData = data.find(item => 
+                new Date(item.date).toDateString() === yesterdayStr
+            );
+            
+            const todayData = data.find(item => 
+                new Date(item.date).toDateString() === today
+            );
+            
+            if (yesterdayData && !todayData) {
+                showNotification('📋 检测到昨日数据，今日尚未填写。请及时完成今日总结！', 'error');
+            }
+        }
+        
+        // 加载所有数据
+        function loadAllData() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : [];
+        }
+        
+        // 保存数据
+        function saveData() {
+            const data = collectFormData();
+            
+            if (!validateData(data)) {
+                showNotification('请填写至少今日工作内容和明日计划！', 'error');
+                return;
+            }
+            
+            const allData = loadAllData();
+            const today = new Date().toDateString();
+            const todayIndex = allData.findIndex(item => 
+                new Date(item.date).toDateString() === today
+            );
+            
+            if (todayIndex !== -1) {
+                // 更新今日数据
+                allData[todayIndex] = data;
+            } else {
+                // 新增今日数据
+                allData.push(data);
+            }
+            
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+            
+            updateProgressDisplay();
+            showNotification('✅ 数据保存成功！', 'success');
+            loadLastSubmission();
+        }
+        
+        // 收集表单数据
+        function collectFormData() {
+            const now = new Date();
+            return {
+                date: now.toISOString(),
+                time: now.toLocaleTimeString('zh-CN'),
+                todayWork: document.getElementById('todayWork').value,
+                todayAchievements: document.getElementById('todayAchievements').value,
+                todayChallenges: document.getElementById('todayChallenges').value,
+                tomorrowPlan: document.getElementById('tomorrowPlan').value,
+                tomorrowGoals: document.getElementById('tomorrowGoals').value,
+                tomorrowRisks: document.getElementById('tomorrowRisks').value,
+                todayReflection: document.getElementById('todayReflection').value,
+                improvementIdeas: document.getElementById('improvementIdeas').value,
+                gratitude: document.getElementById('gratitude').value,
+                timeManagement: document.getElementById('timeManagement').value,
+                priorityMatrix: document.getElementById('priorityMatrix').value,
+                stakeholder: document.getElementById('stakeholder').value,
+                decisionMaking: document.getElementById('decisionMaking').value,
+                teamCollaboration: document.getElementById('teamCollaboration').value,
+                leadership: document.getElementById('leadership').value
+            };
+        }
+        
+        // 验证数据
+        function validateData(data) {
+            return data.todayWork.trim().length > 0 && 
+                   data.tomorrowPlan.trim().length > 0;
+        }
+        
+        // 加载前一天数据
+        function loadPreviousDay() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toDateString();
+            
+            const data = loadAllData();
+            const yesterdayData = data.find(item => 
+                new Date(item.date).toDateString() === yesterdayStr
+            );
+            
+            if (yesterdayData) {
+                // 只加载明日计划到今日工作
+                document.getElementById('todayWork').value = 
+                    yesterdayData.tomorrowPlan || '';
+                showNotification('📅 昨日计划已加载到今日工作中', 'success');
+            } else {
+                showNotification('未找到昨日数据', 'error');
+            }
+        }
+        
+        // 分析进度差异
+        function analyzeProgress() {
+            const today = new Date().toDateString();
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toDateString();
+            
+            const data = loadAllData();
+            const todayData = data.find(item => 
+                new Date(item.date).toDateString() === today
+            );
+            
+            const yesterdayData = data.find(item => 
+                new Date(item.date).toDateString() === yesterdayStr
+            );
+            
+            if (!todayData && !yesterdayData) {
+                showNotification('需要至少两天的数据才能分析', 'error');
+                return;
+            }
+            
+            updateProgressDisplay();
+            showNotification('📊 进度分析完成！', 'success');
+        }
+        
+        // 更新进度显示
+        function updateProgressDisplay() {
+            const today = new Date().toDateString();
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toDateString();
+            
+            const data = loadAllData();
+            const todayData = data.find(item => 
+                new Date(item.date).toDateString() === today
+            );
+            
+            const yesterdayData = data.find(item => 
+                new Date(item.date).toDateString() === yesterdayStr
+            );
+            
+            const container = document.getElementById('progressContainer');
+            container.innerHTML = '';
+            
+            if (!yesterdayData && !todayData) {
+                container.innerHTML = '<div class="progress-item"><div class="progress-content">暂无数据可比较</div></div>';
+                return;
+            }
+            
+            // 工作完成度分析
+            if (yesterdayData && todayData) {
+                const yesterdayTasks = yesterdayData.tomorrowPlan ? 
+                    yesterdayData.tomorrowPlan.split('\n').filter(line => line.trim().length > 0) : [];
+                const todayCompleted = todayData.todayWork ? 
+                    todayData.todayWork.split('\n').filter(line => line.trim().length > 0) : [];
+                
+                const completedCount = yesterdayTasks.filter(task => 
+                    todayCompleted.some(completed => 
+                        completed.toLowerCase().includes(task.toLowerCase().substring(0, 20))
+                    )
+                ).length;
+                
+                const completionRate = yesterdayTasks.length > 0 ? 
+                    Math.round((completedCount / yesterdayTasks.length) * 100) : 0;
+                
+                const statusClass = completionRate >= 80 ? 'status-completed' : 
+                                  completionRate >= 50 ? 'status-pending' : 'status-incomplete';
+                
+                const progressItem = document.createElement('div');
+                progressItem.className = 'progress-item';
+                progressItem.innerHTML = `
+                    <div class="progress-header">
+                        <div class="progress-category">昨日计划完成度</div>
+                        <div class="progress-status ${statusClass}">${completionRate}% 完成</div>
+                    </div>
+                    <div class="progress-content">
+                        昨日计划 ${yesterdayTasks.length} 项，今日完成 ${completedCount} 项
+                        ${completionRate < 70 ? '<br><strong>⚠️ 需要提高执行效率！</strong>' : ''}
+                    </div>
+                `;
+                container.appendChild(progressItem);
+            }
+            
+            // 目标设定质量
+            if (todayData && todayData.tomorrowGoals) {
+                const smartKeywords = ['具体', '可衡量', '可实现', '相关', '有时限', 
+                                      'specific', 'measurable', 'achievable', 'relevant', 'time-bound'];
+                const goalsText = todayData.tomorrowGoals.toLowerCase();
+                const smartCount = smartKeywords.filter(keyword => 
+                    goalsText.includes(keyword.toLowerCase())
+                ).length;
+                
+                const smartScore = Math.round((smartCount / 5) * 100);
+                const statusClass = smartScore >= 80 ? 'status-completed' : 
+                                  smartScore >= 60 ? 'status-pending' : 'status-incomplete';
+                
+                const progressItem = document.createElement('div');
+                progressItem.className = 'progress-item';
+                progressItem.innerHTML = `
+                    <div class="progress-header">
+                        <div class="progress-category">目标设定质量 (SMART原则)</div>
+                        <div class="progress-status ${statusClass}">${smartScore}% 符合</div>
+                    </div>
+                    <div class="progress-content">
+                        检测到 ${smartCount}/5 个SMART要素
+                        ${smartScore < 70 ? '<br><strong>💡 建议使用更具体的SMART目标</strong>' : ''}
+                    </div>
+                `;
+                container.appendChild(progressItem);
+            }
+            
+            // 反思深度
+            if (todayData && todayData.todayReflection) {
+                const reflectionLength = todayData.todayReflection.length;
+                const wordCount = todayData.todayReflection.split(/\s+/).length;
+                
+                const depthScore = reflectionLength > 200 ? 90 : 
+                                  reflectionLength > 100 ? 70 : 
+                                  reflectionLength > 50 ? 50 : 30;
+                
+                const statusClass = depthScore >= 80 ? 'status-completed' : 
+                                  depthScore >= 60 ? 'status-pending' : 'status-incomplete';
+                
+                const progressItem = document.createElement('div');
+                progressItem.className = 'progress-item';
+                progressItem.innerHTML = `
+                    <div class="progress-header">
+                        <div class="progress-category">反思深度分析</div>
+                        <div class="progress-status ${statusClass}">${depthScore}% 深度</div>
+                    </div>
+                    <div class="progress-content">
+                        今日反思 ${wordCount} 字，${reflectionLength} 字符
+                        ${depthScore < 70 ? '<br><strong>🤔 可以更深入地思考收获和感悟</strong>' : ''}
+                    </div>
+                `;
+                container.appendChild(progressItem);
+            }
+            
+            // 连续打卡天数
+            const streak = calculateStreak();
+            if (streak > 0) {
+                const progressItem = document.createElement('div');
+                progressItem.className = 'progress-item';
+                progressItem.innerHTML = `
+                    <div class="progress-header">
+                        <div class="progress-category">连续打卡记录</div>
+                        <div class="progress-status status-completed">🔥 ${streak} 天</div>
+                    </div>
+                    <div class="progress-content">
+                        已经连续记录 ${streak} 天，继续保持！
+                        ${streak >= 7 ? '<br><strong>🎉 习惯正在形成！</strong>' : ''}
+                    </div>
+                `;
+                container.appendChild(progressItem);
+            }
+        }
+        
+        // 计算连续打卡天数
+        function calculateStreak() {
+            const data = loadAllData();
+            if (data.length === 0) return 0;
+            
+            // 按日期排序
+            const sortedData = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            let streak = 0;
+            const today = new Date();
+            
+            for (let i = 0; i < sortedData.length; i++) {
+                const recordDate = new Date(sortedData[i].date);
+                const expectedDate = new Date(today);
+                expectedDate.setDate(today.getDate() - i);
+                
+                if (recordDate.toDateString() === expectedDate.toDateString()) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
+        }
+        
+        // 导出数据
+        function exportData() {
+            const data = collectFormData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `工作日报_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification('📥 数据已导出为JSON文件', 'success');
+        }
+        
+        // 显示通知
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 自动保存设置
+        function setupAutoSave() {
+            // 每分钟自动保存
+            setInterval(() => {
+                const data = collectFormData();
+                if (validateData(data)) {
+                    const autoSaveKey = 'daily_plan_autosave';
+                    localStorage.setItem(autoSaveKey, JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        data: data
+                    }));
+                }
+            }, 60000); // 60秒
+            
+            // 恢复自动保存的数据
+            const autoSaveKey = 'daily_plan_autosave';
+            const autoSaved = localStorage.getItem(autoSaveKey);
+            if (autoSaved) {
+                const saved = JSON.parse(autoSaved);
+                const savedTime = new Date(saved.timestamp);
+                const now = new Date();
+                const diffMinutes = (now - savedTime) / (1000 * 60);
+                
+                if (diffMinutes < 60) { // 1小时内
+                    showNotification(`🔄 已恢复 ${Math.floor(diffMinutes)} 分钟前的自动保存数据`, 'success');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
