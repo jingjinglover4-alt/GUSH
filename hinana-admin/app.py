@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import random
 import string
 import os
+import requests
 
 app = Flask(__name__, static_url_path='/admin/static')
 app.config['SECRET_KEY'] = 'hinana-secret-key-2026'
@@ -148,9 +149,9 @@ class Channel(db.Model):
     channel_no = db.Column(db.Integer, nullable=False)  # 货道编号 0-59
     product_name = db.Column(db.String(100), default='')
     product_image = db.Column(db.String(255), default='')
-    max_qty = db.Column(db.Integer, default=50)
+    max_qty = db.Column(db.Integer, default=5)
     unit_price = db.Column(db.Float, default=0)
-    low_stock_threshold = db.Column(db.Integer, default=10)
+    low_stock_threshold = db.Column(db.Integer, default=2)
     status = db.Column(db.String(20), default='normal')  # normal, disabled
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -997,6 +998,15 @@ def api_users():
         'total_redeems': RedeemCode.query.filter_by(status='used').count()
     })
 
+# ============ 货物可视化页面 ============
+@app.route(f"{ADMIN_PREFIX}/inventory-visualization")
+def inventory_visualization():
+    """货物可视化页面"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+    return render_template("inventory_visualization.html")
+
+
 # ============ 内容管理 API ============
 @app.route(f"{ADMIN_PREFIX}/content")
 def content_page():
@@ -1038,6 +1048,97 @@ def save_content_config():
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==================== 硬件控制 API ====================
+
+# 硬件网关配置
+HARDWARE_GATEWAY_URL = "http://localhost:8003"  # 硬件网关服务地址
+HARDWARE_GATEWAY_TOKEN = "admin-demo-token"  # 硬件网关管理令牌
+
+@app.route(f'{ADMIN_PREFIX}/hardware')
+def hardware_control():
+    """硬件控制面板"""
+    if 'admin_id' not in session:
+        return redirect(url_for('index'))
+    return render_template('hardware.html')
+
+
+@app.route(f'{ADMIN_PREFIX}/api/hardware', methods=['GET'])
+def api_hardware_list():
+    """获取硬件连接列表（从硬件网关获取）"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': '未授权'}), 401
+    
+    try:
+        # 调用硬件网关API获取硬件列表
+        headers = {'Authorization': HARDWARE_GATEWAY_TOKEN}
+        response = requests.get(
+            f'{HARDWARE_GATEWAY_URL}/api/hardware',
+            headers=headers,
+            timeout=5
+        )
+        if response.status_code == 200:
+            return jsonify({'success': True, 'data': response.json()})
+        else:
+            return jsonify({'success': False, 'error': f'硬件网关错误: {response.status_code}'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'连接硬件网关失败: {str(e)}'}), 500
+
+
+@app.route(f'{ADMIN_PREFIX}/api/hardware/<imei>/status', methods=['GET'])
+def api_hardware_status(imei):
+    """获取硬件状态"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': '未授权'}), 401
+    
+    try:
+        headers = {'Authorization': HARDWARE_GATEWAY_TOKEN}
+        response = requests.get(
+            f'{HARDWARE_GATEWAY_URL}/api/hardware/{imei}/status',
+            headers=headers,
+            timeout=5
+        )
+        if response.status_code == 200:
+            return jsonify({'success': True, 'data': response.json()})
+        elif response.status_code == 404:
+            return jsonify({'success': False, 'error': '硬件未找到'}), 404
+        else:
+            return jsonify({'success': False, 'error': f'硬件网关错误: {response.status_code}'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'连接硬件网关失败: {str(e)}'}), 500
+
+
+@app.route(f'{ADMIN_PREFIX}/api/hardware/<imei>/command', methods=['POST'])
+def api_hardware_command(imei):
+    """发送命令到硬件"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'error': '未授权'}), 401
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': '无效的JSON数据'}), 400
+        
+        # 添加管理员信息
+        data['initiated_by'] = f'admin:{session.get("admin_id")}'
+        
+        headers = {'Authorization': HARDWARE_GATEWAY_TOKEN}
+        response = requests.post(
+            f'{HARDWARE_GATEWAY_URL}/api/hardware/{imei}/command',
+            json=data,
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return jsonify({'success': True, 'data': response.json()})
+        elif response.status_code == 404:
+            return jsonify({'success': False, 'error': '硬件未找到'}), 404
+        else:
+            return jsonify({'success': False, 'error': f'硬件网关错误: {response.status_code}'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'连接硬件网关失败: {str(e)}'}), 500
 
 
 # ==================== 启动 ====================

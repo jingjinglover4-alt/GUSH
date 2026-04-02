@@ -244,6 +244,29 @@ def health_check():
     })
 
 
+@app.route('/api/hardware', methods=['GET'])
+def get_all_hardware():
+    """获取所有硬件连接列表"""
+    # 验证管理后台权限（简化版）
+    auth_token = request.headers.get('Authorization')
+    if not auth_token or not validate_admin_token(auth_token):
+        return jsonify({'error': '未授权'}), 401
+    
+    hardware_list = hardware_manager.get_all_hardware()
+    return jsonify([{
+        'imei': hw.imei,
+        'sn': hw.sn,
+        'sid': hw.sid,
+        'ip_address': hw.ip_address,
+        'signal_strength': hw.signal_strength,
+        'firmware_version': hw.firmware_version,
+        'last_heartbeat': hw.last_heartbeat.isoformat() if hw.last_heartbeat else None,
+        'online': hw.online,
+        'connection_count': hw.connection_count,
+        'created_at': hw.created_at.isoformat() if hw.created_at else None
+    } for hw in hardware_list])
+
+
 @app.route('/api/hardware/<imei>/command', methods=['POST'])
 def send_command_to_hardware(imei: str):
     """向指定硬件发送命令（管理后台调用）"""

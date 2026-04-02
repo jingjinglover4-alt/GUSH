@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硬件远程控制 - HI拿智能派样SaaS</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        /* 顶部导航 */
+        .topbar {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--gradient-purple);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: var(--bg-card);
+        }
+        
+        .nav-link.active {
+            color: var(--primary);
+            background: var(--bg-card);
+        }
+        
+        /* 主内容 */
+        .main-content {
+            padding: 88px 24px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page-header {
+            margin-bottom: 32px;
+        }
+        
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        /* 硬件卡片 */
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .hardware-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        
+        .hardware-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        .hardware-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .hardware-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-online {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+        
+        .status-offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+        
+        .hardware-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .info-value {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .hardware-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+        
+        /* 命令面板 */
+        .command-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+        
+        .panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .command-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .form-input, .form-select {
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .command-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .hardware-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .command-form {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="topbar">
+        <div class="logo">
+            <div class="logo-icon">H</div>
+            <div class="logo-text">HI拿智能派样SaaS</div>
+        </div>
+        <div class="nav-links">
+            <a href="/admin/dashboard" class="nav-link">仪表盘</a>
+            <a href="/admin/hardware" class="nav-link active">硬件控制</a>
+            <a href="/admin/machines" class="nav-link">机器管理</a>
+            <a href="/admin/settings" class="nav-link">设置</a>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">硬件远程控制</h1>
+            <p class="page-subtitle">监控和管理所有联网的派样机硬件设备</p>
+        </div>
+
+        <!-- 硬件列表 -->
+        <div class="hardware-grid" id="hardwareList">
+            <div class="loading">加载中...</div>
+        </div>
+
+        <!-- 命令面板 -->
+        <div class="command-panel">
+            <h2 class="panel-title">发送远程命令</h2>
+            <div class="command-form">
+                <div class="form-group">
+                    <label class="form-label">选择硬件</label>
+                    <select class="form-select" id="commandImei">
+                        <option value="">请选择硬件...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">命令类型</label>
+                    <select class="form-select" id="commandType">
+                        <option value="dispense">出货 (dispense)</option>
+                        <option value="query_inventory">查询库存</option>
+                        <option value="query_status">查询状态</option>
+                        <option value="reboot">重启设备</option>
+                        <option value="diagnostic">诊断</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">货道编号 (仅出货命令)</label>
+                    <input type="text" class="form-input" id="commandChannel" placeholder="例如: A0" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">参数 (JSON格式)</label>
+                    <textarea class="form-input" id="commandParams" rows="3" placeholder='{"key": "value"}'></textarea>
+                </div>
+            </div>
+            <div class="command-buttons">
+                <button class="btn btn-secondary" onclick="clearCommand()">清空</button>
+                <button class="btn btn-primary" onclick="sendCommand()">发送命令</button>
+            </div>
+            <div id="commandResult" style="margin-top: 20px; display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // API基础URL
+        const API_BASE = '/admin/api';
+        
+        // 加载硬件列表
+        async function loadHardware() {
+            try {
+                const response = await axios.get(`${API_BASE}/hardware`);
+                if (response.data.success) {
+                    renderHardwareList(response.data.data || []);
+                    updateHardwareDropdown(response.data.data || []);
+                } else {
+                    showError('加载硬件列表失败: ' + (response.data.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('加载硬件列表错误:', error);
+                showError('加载硬件列表失败: ' + error.message);
+            }
+        }
+        
+        // 渲染硬件列表
+        function renderHardwareList(hardwareList) {
+            const container = document.getElementById('hardwareList');
+            
+            if (hardwareList.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-secondary);">
+                        暂无硬件设备在线
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = hardwareList.map(hardware => `
+                <div class="hardware-card">
+                    <div class="hardware-header">
+                        <div class="hardware-title">${hardware.imei || '未知设备'}</div>
+                        <div class="status-badge ${hardware.online ? 'status-online' : 'status-offline'}">
+                            ${hardware.online ? '在线' : '离线'}
+                        </div>
+                    </div>
+                    <div class="hardware-info">
+                        <div class="info-item">
+                            <span class="info-label">序列号</span>
+                            <span class="info-value">${hardware.sn || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">信号强度</span>
+                            <span class="info-value">${hardware.signal_strength || 'N/A'} dBm</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">固件版本</span>
+                            <span class="info-value">${hardware.firmware_version || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">最后心跳</span>
+                            <span class="info-value">${hardware.last_heartbeat ? new Date(hardware.last_heartbeat).toLocaleString() : 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">IP地址</span>
+                            <span class="info-value">${hardware.ip_address || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">连接次数</span>
+                            <span class="info-value">${hardware.connection_count || 0}</span>
+                        </div>
+                    </div>
+                    <div class="hardware-actions">
+                        <button class="btn btn-secondary" onclick="refreshHardwareStatus('${hardware.imei}')">
+                            刷新状态
+                        </button>
+                        <button class="btn btn-primary" onclick="selectHardware('${hardware.imei}')">
+                            选择设备
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 更新硬件下拉框
+        function updateHardwareDropdown(hardwareList) {
+            const select = document.getElementById('commandImei');
+            select.innerHTML = '<option value="">请选择硬件...</option>';
+            
+            hardwareList.forEach(hardware => {
+                const option = document.createElement('option');
+                option.value = hardware.imei;
+                option.textContent = `${hardware.imei} ${hardware.online ? '(在线)' : '(离线)'}`;
+                select.appendChild(option);
+            });
+        }
+        
+        // 选择硬件
+        function selectHardware(imei) {
+            document.getElementById('commandImei').value = imei;
+        }
+        
+        // 刷新硬件状态
+        async function refreshHardwareStatus(imei) {
+            try {
+                const response = await axios.get(`${API_BASE}/hardware/${imei}/status`);
+                if (response.data.success) {
+                    alert(`硬件状态更新成功: ${response.data.data.online ? '在线' : '离线'}`);
+                    loadHardware(); // 重新加载列表
+                } else {
+                    alert('刷新状态失败: ' + (response.data.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('刷新状态错误:', error);
+                alert('刷新状态失败: ' + error.message);
+            }
+        }
+        
+        // 发送命令
+        async function sendCommand() {
+            const imei = document.getElementById('commandImei').value;
+            const commandType = document.getElementById('commandType').value;
+            const channel = document.getElementById('commandChannel').value;
+            const paramsText = document.getElementById('commandParams').value;
+            
+            if (!imei) {
+                alert('请选择硬件设备');
+                return;
+            }
+            
+            if (!commandType) {
+                alert('请选择命令类型');
+                return;
+            }
+            
+            // 构建命令数据
+            let commandData = {
+                command_type: commandType,
+                priority: 'normal'
+            };
+            
+            // 添加特定命令的参数
+            if (commandType === 'dispense' && channel) {
+                commandData.command_data = JSON.stringify({ channel: channel });
+            }
+            
+            // 如果有自定义参数
+            if (paramsText) {
+                try {
+                    const customParams = JSON.parse(paramsText);
+                    commandData.command_data = JSON.stringify(customParams);
+                } catch (e) {
+                    alert('参数必须是有效的JSON格式');
+                    return;
+                }
+            }
+            
+            const resultDiv = document.getElementById('commandResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div style="color: var(--warning);">发送命令中...</div>';
+            
+            try {
+                const response = await axios.post(`${API_BASE}/hardware/${imei}/command`, commandData);
+                
+                if (response.data.success) {
+                    resultDiv.innerHTML = `
+                        <div style="color: var(--success); margin-bottom: 10px;">
+                            <strong>✓ 命令发送成功</strong>
+                        </div>
+                        <div style="background: var(--bg-dark); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px;">
+                            ${JSON.stringify(response.data.data, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="color: var(--danger); margin-bottom: 10px;">
+                            <strong>✗ 命令发送失败</strong>
+                        </div>
+                        <div>错误: ${response.data.error || '未知错误'}</div>
+                    `;
+                }
+            } catch (error) {
+                console.error('发送命令错误:', error);
+                resultDiv.innerHTML = `
+                    <div style="color: var(--danger); margin-bottom: 10px;">
+                        <strong>✗ 命令发送失败</strong>
+                    </div>
+                    <div>错误: ${error.message}</div>
+                `;
+            }
+        }
+        
+        // 清空命令表单
+        function clearCommand() {
+            document.getElementById('commandImei').value = '';
+            document.getElementById('commandType').value = 'dispense';
+            document.getElementById('commandChannel').value = '';
+            document.getElementById('commandParams').value = '';
+            document.getElementById('commandResult').style.display = 'none';
+        }
+        
+        // 显示错误
+        function showError(message) {
+            const container = document.getElementById('hardwareList');
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--danger);">
+                    ${message}
+                </div>
+            `;
+        }
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHardware();
+            
+            // 每30秒自动刷新硬件列表
+            setInterval(loadHardware, 30000);
+        });
+    </script>
+</body>
+</html>

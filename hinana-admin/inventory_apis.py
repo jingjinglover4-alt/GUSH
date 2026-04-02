@@ -41,6 +41,18 @@ def api_get_machine_channels(mid):
         return jsonify({'success': False, 'error': 'unauthorized'}), 401
     
     db = get_db()
+    # 先检查机器权限
+    machine = db.execute('SELECT customer_id FROM machines WHERE id = ?', (mid,)).fetchone()
+    if not machine:
+        db.close()
+        return jsonify({'success': False, 'error': 'machine not found'})
+    
+    # SaaS商户权限检查：只能查看自己客户的机器
+    customer_id = session.get('customer_id')
+    if customer_id and machine['customer_id'] != customer_id:
+        db.close()
+        return jsonify({'success': False, 'error': '无权查看此机器'}), 403
+    
     channels = db.execute('''
         SELECT c.*, COALESCE(i.current_qty, 0) as current_qty, 
                COALESCE(i.last_updated, c.created_at) as last_updated
@@ -75,10 +87,16 @@ def api_create_machine_channels(mid):
         return jsonify({'success': False, 'error': 'unauthorized'}), 401
     
     db = get_db()
-    machine = db.execute('SELECT id FROM machines WHERE id = ?', (mid,)).fetchone()
+    machine = db.execute('SELECT id, customer_id FROM machines WHERE id = ?', (mid,)).fetchone()
     if not machine:
         db.close()
         return jsonify({'success': False, 'error': 'machine not found'})
+    
+    # SaaS商户权限检查：只能为自己客户的机器创建货道
+    customer_id = session.get('customer_id')
+    if customer_id and machine['customer_id'] != customer_id:
+        db.close()
+        return jsonify({'success': False, 'error': '无权为此机器创建货道'}), 403
     
     # 检查是否已有货道
     existing = db.execute('SELECT COUNT(*) as cnt FROM channels WHERE machine_id = ?', (mid,)).fetchone()
@@ -86,17 +104,17 @@ def api_create_machine_channels(mid):
         db.close()
         return jsonify({'success': False, 'error': 'channels already exist'})
     
-    # 默认创建4个货道
+    # 默认创建4个货道（注意：货物可视化模块需要60个货道，这里保持兼容）
     channel_ids = []
     for i in range(1, 5):
         cursor = db.execute('''
             INSERT INTO channels (machine_id, channel_no, product_name, max_qty, low_stock_threshold)
             VALUES (?, ?, ?, ?, ?)
-        ''', (mid, i, f'商品{i}号', 50, 10))
+        ''', (mid, i, f'商品{i}号', 5, 2))
         channel_ids.append(cursor.lastrowid)
         
-        # 创建库存记录
-        db.execute('INSERT INTO inventory (channel_id, current_qty) VALUES (?, ?)', (cursor.lastrowid, 30))
+        # 创建库存记录，初始为满
+        db.execute('INSERT INTO inventory (channel_id, current_qty) VALUES (?, ?)', (cursor.lastrowid, 5))
     
     db.commit()
     db.close()
@@ -149,10 +167,22 @@ def api_replenish_channel(cid):
         return jsonify({'success': False, 'error': 'quantity required'})
     
     db = get_db()
-    channel = db.execute('SELECT * FROM channels WHERE id = ?', (cid,)).fetchone()
+    # 获取货道信息，包括所属机器和客户
+    channel = db.execute('''
+        SELECT c.*, m.customer_id 
+        FROM channels c 
+        JOIN machines m ON c.machine_id = m.id 
+        WHERE c.id = ?
+    ''', (cid,)).fetchone()
     if not channel:
         db.close()
         return jsonify({'success': False, 'error': 'channel not found'})
+    
+    # SaaS商户权限检查：只能操作自己客户的机器
+    customer_id = session.get('customer_id')
+    if customer_id and channel['customer_id'] != customer_id:
+        db.close()
+        return jsonify({'success': False, 'error': '无权操作此货道'}), 403
     
     # 获取当前库存
     inv = db.execute('SELECT current_qty FROM inventory WHERE channel_id = ?', (cid,)).fetchone()
@@ -196,10 +226,22 @@ def api_update_inventory(cid):
         return jsonify({'success': False, 'error': 'current_qty required'})
     
     db = get_db()
-    channel = db.execute('SELECT max_qty FROM channels WHERE id = ?', (cid,)).fetchone()
+    # 获取货道信息，包括所属机器和客户
+    channel = db.execute('''
+        SELECT c.max_qty, c.machine_id, m.customer_id 
+        FROM channels c 
+        JOIN machines m ON c.machine_id = m.id 
+        WHERE c.id = ?
+    ''', (cid,)).fetchone()
     if not channel:
         db.close()
         return jsonify({'success': False, 'error': 'channel not found'})
+    
+    # SaaS商户权限检查：只能操作自己客户的机器
+    customer_id = session.get('customer_id')
+    if customer_id and channel['customer_id'] != customer_id:
+        db.close()
+        return jsonify({'success': False, 'error': '无权操作此货道'}), 403
     
     new_qty = min(int(data['current_qty']), channel['max_qty'])
     

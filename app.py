@@ -148,9 +148,9 @@ class Channel(db.Model):
     channel_no = db.Column(db.Integer, nullable=False)  # 货道编号 0-59
     product_name = db.Column(db.String(100), default='')
     product_image = db.Column(db.String(255), default='')
-    max_qty = db.Column(db.Integer, default=50)
+    max_qty = db.Column(db.Integer, default=5)
     unit_price = db.Column(db.Float, default=0)
-    low_stock_threshold = db.Column(db.Integer, default=10)
+    low_stock_threshold = db.Column(db.Integer, default=2)
     status = db.Column(db.String(20), default='normal')  # normal, disabled
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
