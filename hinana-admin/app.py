@@ -181,6 +181,24 @@ class ReplenishmentLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 
+class DispenseLog(db.Model):
+    """出货记录"""
+    __tablename__ = 'dispense_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    channel_id = db.Column(db.Integer, db.ForeignKey('channels.id'), nullable=False)
+    redeem_code_id = db.Column(db.Integer, db.ForeignKey('redeem_codes.id'), nullable=False)
+    machine_id = db.Column(db.Integer, db.ForeignKey('machines.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    channel_no = db.Column(db.String(10), nullable=False)  # 货道编号 A0-F9
+    dispensed_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # 关系
+    channel = db.relationship('Channel', backref='dispense_logs', lazy=True)
+    redeem_code = db.relationship('RedeemCode', backref='dispense_log', lazy=True)
+    machine = db.relationship('Machine', backref='dispense_logs', lazy=True)
+    customer = db.relationship('Customer', backref='dispense_logs', lazy=True)
+
+
 class Stats(db.Model):
     """数据统计"""
     __tablename__ = 'stats'
@@ -892,6 +910,29 @@ def api_get_stats():
 
 # ==================== 机器端API ====================
 
+# 货道循环选择辅助函数
+def index_to_channel_no(index):
+    """将索引0-59转换为A0-F9格式"""
+    if index < 0 or index >= 60:
+        return 'A0'
+    row = index // 10
+    col = index % 10
+    letter = chr(ord('A') + row)
+    return f'{letter}{col}'
+
+def channel_no_to_index(channel_no):
+    """将A0-F9格式转换为索引0-59"""
+    if not channel_no or len(channel_no) < 2:
+        return 0
+    letter = channel_no[0].upper()
+    col = int(channel_no[1]) if channel_no[1].isdigit() else 0
+    row = ord(letter) - ord('A')
+    return row * 10 + col
+
+# 存储每个机器最后使用的货道索引（内存中，重启重置）
+machine_last_channel_index = {}
+
+
 @app.route(f'{ADMIN_PREFIX}/api/redeem/verify', methods=['POST'])
 def api_verify_code():
     """验证兑换码（机器端调用）"""
@@ -923,13 +964,78 @@ def api_verify_code():
     if redeem_code.status == 'expired' or (redeem_code.expired_at and datetime.now() > redeem_code.expired_at):
         return jsonify({'success': False, 'message': '兑换码已过期'})
 
-    # 验证成功，返回发货指令
+    # 获取该机器所有正常状态的货道
+    channels = Channel.query.filter(
+        Channel.machine_id == machine.id,
+        Channel.status == 'normal'
+    ).order_by(Channel.channel_no).all()
+    
+    if not channels:
+        return jsonify({'success': False, 'message': '机器无可用货道'})
+    
+    # 辅助函数：将channel_no规范化为A0-F9格式字符串
+    def normalize_channel_no(val):
+        if isinstance(val, int):
+            return index_to_channel_no(val)
+        else:
+            # 确保字符串格式一致（大写字母+数字）
+            s = str(val).strip().upper()
+            if len(s) >= 2 and s[0].isalpha() and s[1:].isdigit():
+                return s[0] + s[1:]  # 保持格式如"A0"
+            return s
+    
+    # 获取当前机器的最后使用索引
+    current_index = machine_last_channel_index.get(machine.id, -1)
+    
+    # 循环查找有库存的货道
+    found_channel = None
+    selected_inventory = None
+    for offset in range(1, 61):  # 最多尝试60次
+        try_index = (current_index + offset) % 60
+        target_channel_no = index_to_channel_no(try_index)
+        
+        # 查找对应channel_no的货道
+        channel = next((c for c in channels if normalize_channel_no(c.channel_no) == target_channel_no), None)
+        if channel:
+            # 检查库存
+            inventory = Inventory.query.filter_by(channel_id=channel.id).first()
+            if inventory and inventory.current_qty > 0:
+                found_channel = channel
+                selected_inventory = inventory
+                machine_last_channel_index[machine.id] = try_index
+                break
+    
+    if not found_channel:
+        return jsonify({'success': False, 'message': '机器无可用货道'})
+    
+    # 标记兑换码已使用
     redeem_code.status = 'used'
     redeem_code.used_at = datetime.now()
     redeem_code.used_machine_id = machine.id
-    user_phone = db.Column(db.String(20))  # 用户手机号
-    db.session.commit()
-
+    
+    # 创建出货记录
+    # 确保channel_no是字符串格式（A0-F9）
+    channel_no_str = str(found_channel.channel_no)
+    # 如果channel_no是整数，转换为字符串格式
+    if channel_no_str.isdigit():
+        channel_no_int = int(channel_no_str)
+        channel_no_str = index_to_channel_no(channel_no_int)
+    
+    dispense_log = DispenseLog(
+        channel_id=found_channel.id,
+        redeem_code_id=redeem_code.id,
+        machine_id=machine.id,
+        customer_id=machine.customer_id,
+        channel_no=channel_no_str,
+        dispensed_at=datetime.now()
+    )
+    db.session.add(dispense_log)
+    
+    # 减少库存
+    if selected_inventory:
+        selected_inventory.current_qty -= 1
+        db.session.add(selected_inventory)  # 确保SQLAlchemy跟踪更改
+    
     # 更新统计数据
     today = datetime.now().date()
     stats = Stats.query.filter_by(customer_id=machine.customer_id, date=today).first()
@@ -938,15 +1044,17 @@ def api_verify_code():
     else:
         stats = Stats(customer_id=machine.customer_id, date=today, redeem_count=1)
         db.session.add(stats)
+    
     db.session.commit()
 
+    # 返回发货指令，包含 slot 字段
     return jsonify({
         'success': True,
         'message': '验证成功',
-        'action': 'dispense'  # 机器收到此指令后发货
+        'action': 'dispense',
+        'slot': f'Slot{channel_no_str}',  # 返回 slot 供上位机识别
+        'channel': channel_no_str
     })
-
-
 @app.route(f'{ADMIN_PREFIX}/api/machine/heartbeat', methods=['POST'])
 def api_machine_heartbeat():
     """机器心跳"""
