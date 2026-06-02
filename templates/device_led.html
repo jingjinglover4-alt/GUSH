@@ -1,0 +1,110 @@
+{% load static %}<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>{{ project.name|default:"派样机" }}</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      background: #000; color: #fff;
+      font-family: "Noto Sans SC", -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    .stage {
+      position: relative; width: 100vw; height: 100vh;
+      overflow: hidden; background: #000;
+    }
+    .page-bg {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .empty-state {
+      width: 100vw; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+      color: rgba(255,255,255,0.55);
+    }
+    .empty-state h2 { color: #fff; margin: 0; }
+  </style>
+</head>
+<body>
+  {% if not led_page %}
+    <div class="empty-state">
+      <h2>设备未绑定项目</h2>
+      <div>请在 SaaS 后台为设备 {{ machine.machine_id }} 绑定一个项目</div>
+    </div>
+  {% else %}
+    <div class="stage">
+      <div class="page-bg" id="pageBg"></div>
+    </div>
+
+    <script>
+      const PAGE1_BG = {{ page1_background_json|safe }};
+      const PAGE2_BG = {{ page2_background_json|safe }};
+      const MACHINE_ID = "{{ machine.machine_id }}";
+      const PROJECT_ID = {{ project.id|default:"null" }};
+
+      function getQueryParam(name) {
+        const m = window.location.search.match(new RegExp("[?&]" + name + "=([^&]+)"));
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+
+      (function reportVisit() {
+        let fp = "";
+        try {
+          fp = localStorage.getItem("gush_led_fp") || "";
+          if (!fp) {
+            fp = "led_" + MACHINE_ID + "_" + Math.random().toString(36).slice(2);
+            localStorage.setItem("gush_led_fp", fp);
+          }
+        } catch (e) {}
+        try {
+          fetch("/api/public/visit/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              page_type: "led",
+              project_id: PROJECT_ID,
+              machine_id: MACHINE_ID,
+              device_fp: fp,
+            }),
+            keepalive: true,
+          }).catch(() => {});
+        } catch (e) {}
+      })();
+
+      function applyBackground(el, bg) {
+        if (!bg) return;
+        const fit = (bg.fit || 'cover');
+        const sizeMap = { cover: 'cover', contain: 'contain', fill: '100% 100%', top: 'cover' };
+        const posMap = { cover: 'center', contain: 'center', fill: 'center', top: 'top center' };
+        const bgSize = sizeMap[fit] || 'cover';
+        const bgPos = posMap[fit] || 'center';
+        if (bg.type === 'image' && bg.value) {
+          el.style.backgroundImage = 'url(' + bg.value + ')';
+          el.style.backgroundSize = bgSize;
+          el.style.backgroundPosition = bgPos;
+          el.style.background = el.style.background || '';
+        } else if (bg.type === 'color') {
+          el.style.background = bg.value || '#000';
+        } else if (bg.type === 'video' && bg.value) {
+          const vid = document.createElement('video');
+          vid.src = bg.value;
+          vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
+          vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:' +
+            (fit === 'contain' ? 'contain' : (fit === 'fill' ? 'fill' : 'cover'));
+          el.appendChild(vid);
+        }
+      }
+
+      const page = getQueryParam('page') === '2' ? '2' : '1';
+      const bg = page === '2' ? PAGE2_BG : PAGE1_BG;
+      applyBackground(document.getElementById('pageBg'), bg);
+    </script>
+  {% endif %}
+</body>
+</html>

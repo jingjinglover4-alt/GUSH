@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{{ project_name }} - 隐私政策</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      min-height: 100vh;
+      color: #e2e8f0;
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 16px 60px;
+    }
+    .header {
+      text-align: center;
+      padding: 32px 0 24px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .header .subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .content {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 24px 20px;
+    }
+    .content p {
+      margin-bottom: 16px;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+    .content p:last-child {
+      margin-bottom: 0;
+    }
+    .content h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin: 24px 0 12px;
+      padding-top: 8px;
+    }
+    .content h2:first-child {
+      margin-top: 0;
+    }
+    .content ul {
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+    .content li {
+      color: #cbd5e1;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .content a {
+      color: #38bdf8;
+      text-decoration: none;
+    }
+    .content a:hover {
+      text-decoration: underline;
+    }
+    .content strong {
+      color: #fff;
+    }
+    .back-btn {
+      display: block;
+      width: calc(100% - 32px);
+      max-width: 400px;
+      margin: 32px auto 0;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .back-btn:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      transform: translateY(-1px);
+    }
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #94a3b8;
+    }
+    .error {
+      text-align: center;
+      padding: 60px 20px;
+      color: #f87171;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="app">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <script>
+    async function loadPrivacy() {
+      const pageId = {{ page_id }};
+      try {
+        const resp = await fetch(`/api/public/privacy/${pageId}/`);
+        const data = await resp.json();
+
+        if (data.detail) {
+          document.getElementById('app').innerHTML = '<div class="error">' + data.detail + '</div>';
+          return;
+        }
+
+        const projectName = data.project_name || '健乐适';
+        document.title = projectName + ' - 隐私政策';
+
+        // Convert markdown-like content to HTML
+        let html = data.policy_content
+          .replace(/<h1[^>]*>/g, '<h2>').replace(/<\/h1>/g, '</h2>')
+          .replace(/<h2[^>]*>/g, '<h2>').replace(/<\/h2>/g, '</h2>')
+          .replace(/<h3[^>]*>/g, '<h2>').replace(/<\/h3>/g, '</h2>')
+          .replace(/<ul[^>]*>/g, '<ul>').replace(/<\/ul>/g, '</ul>')
+          .replace(/<li[^>]*>/g, '<li>').replace(/<\/li>/g, '</li>')
+          .replace(/<p[^>]*>/g, '<p>').replace(/<\/p>/g, '</p>')
+          .replace(/<strong[^>]*>/g, '<strong>').replace(/<\/strong>/g, '</strong>')
+          .replace(/<a /g, '<a target="_blank" rel="noopener" ');
+
+        document.getElementById('app').innerHTML = `
+          <div class="header">
+            <h1>隐私政策</h1>
+            <div class="subtitle">${projectName}</div>
+          </div>
+          <div class="content">
+            ${html}
+          </div>
+          <button class="back-btn" onclick="window.close()">返回</button>
+          <div class="footer">
+            © ${new Date().getFullYear()} ${projectName} · 隐私政策
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById('app').innerHTML = '<div class="error">加载失败，请稍后重试</div>';
+      }
+    }
+    loadPrivacy();
+  </script>
+</body>
+</html>

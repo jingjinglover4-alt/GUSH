@@ -1,0 +1,695 @@
+{% load static %}<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>{{ h5_page.header_title|default:project.name }}</title>
+  {% if theme.favicon_url %}<link rel="icon" href="{{ theme.favicon_url }}" />{% endif %}
+  <style>
+    :root {
+      --brand: {{ theme.brand_color|default:"#14B450" }};
+      --accent: {{ theme.accent_color|default:"#0a0a0a" }};
+      --text: {{ theme.text_color|default:"#FFFFFF" }};
+      --muted: rgba(255,255,255,0.6);
+      --panel: rgba(255,255,255,0.05);
+      --panel-border: rgba(255,255,255,0.1);
+      --err: #ff4d4f;
+      --ok: #52c41a;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; min-height: 100vh; color: var(--text);
+      font-family: {{ theme.font_family|default:'"Noto Sans SC", -apple-system, sans-serif'|safe }};
+      font-size: 15px; line-height: 1.5;
+      {% if theme.background_type == "image" and theme.background_image_url %}
+      background: url("{{ theme.background_image_url }}") center/cover no-repeat fixed, var(--accent);
+      {% elif theme.background_type == "gradient" %}
+      background: {{ theme.background_value|default:"linear-gradient(135deg,#0a0a0a,#1a1a1a)"|safe }};
+      {% else %}
+      background: {{ theme.background_value|default:"#0a0a0a"|safe }};
+      {% endif %}
+    }
+    .page { max-width: 540px; margin: 0 auto; }
+
+    /* 页面切换动画 */
+    .page-section {
+      display: none;
+      min-height: 100dvh;
+      padding: 16px 16px 80px;
+      position: relative;
+    }
+    .hdr { position: absolute; left: 0; right: 0; text-align: center; }
+    .next-btn { position: absolute; left: 16px; right: 16px; }
+    .page-section.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+
+    .hdr .logo { max-width: 120px; max-height: 60px; margin-bottom: 12px; }
+    .hdr h1 { font-size: 26px; margin: 0 0 6px; font-weight: 700; }
+    .hdr .subtitle { color: var(--muted); font-size: 14px; }
+
+    .block { margin: 14px 0; }
+    .block.image img, .block.video video { width: 100%; border-radius: 12px; display: block; }
+    .block.text { font-size: 15px; line-height: 1.7; color: var(--text); white-space: pre-wrap; }
+    .block.rich_text { font-size: 15px; line-height: 1.7; }
+    .block.divider { height: 1px; background: var(--panel-border); margin: 20px 0; }
+    .block.countdown { text-align: center; font-size: 18px; color: var(--brand); font-weight: 600; }
+
+    .form-card { background: var(--panel); border: 1px solid var(--panel-border);
+      border-radius: 16px; padding: 14px 12px; margin-top: 12px; backdrop-filter: blur(10px); }
+    .form-row { margin-bottom: 10px; }
+    .form-row > label { display: block; font-size: 14px; margin-bottom: 4px; color: var(--text); font-weight: 500; }
+    .form-row > label .req { color: var(--err); margin-left: 3px; }
+
+    .input, .form-row input[type=text], .form-row input[type=tel], .form-row select, .form-row textarea {
+      width: 100%; padding: 8px 12px; line-height: 1.4;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border);
+      border-radius: 10px; color: var(--text); font-size: 15px; outline: none;
+      transition: border-color 0.15s;
+    }
+    .input:focus, .form-row input:focus, .form-row select:focus { border-color: var(--brand); }
+    .input::placeholder { color: rgba(255,255,255,0.35); }
+
+    .radio-group { display: flex; flex-direction: column; gap: 10px; }
+    .radio-opt { display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border);
+      border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+    .radio-opt.active { background: rgba(20,180,80,0.12); border-color: var(--brand); }
+    .radio-opt input[type=radio] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border: 2px solid var(--panel-border); border-radius: 4px; background: transparent; cursor: pointer; position: relative; flex-shrink: 0; transition: all 0.15s; }
+    .radio-opt input[type=radio]:checked { background: var(--brand); border-color: var(--brand); }
+    .radio-opt input[type=radio]:checked::after { content: ''; position: absolute; top: 2px; left: 5px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+    .radio-opt .lbl { font-weight: 600; }
+    .radio-opt .sub { font-size: 12px; color: var(--muted); }
+
+    /* 性别字段左右排列 */
+    .gender-group { display: flex; gap: 10px; }
+    .gender-group .radio-opt { flex: 1; justify-content: center; padding: 8px 10px; border-radius: 8px; }
+    .gender-group .radio-opt .icon { font-size: 16px; }
+
+    /* 多选字段 */
+    .multi-group { display: flex; flex-direction: column; gap: 10px; }
+    .multi-opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border);
+      border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+    .multi-opt.active { background: rgba(20,180,80,0.12); border-color: var(--brand); }
+    .multi-opt input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border: 2px solid var(--panel-border); border-radius: 4px; background: transparent; cursor: pointer; position: relative; flex-shrink: 0; transition: all 0.15s; }
+    .multi-opt input[type=checkbox]:checked { background: var(--brand); border-color: var(--brand); }
+    .multi-opt input[type=checkbox]:checked::after { content: ''; position: absolute; top: 2px; left: 5px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+    .multi-opt .lbl { font-weight: 500; }
+
+    .checkbox-row { display: flex; align-items: flex-start; gap: 8px; font-size: 13px;
+      color: var(--muted); margin-top: 4px; flex-wrap: wrap; }
+    .checkbox-row input { margin-top: 3px; accent-color: var(--brand); }
+    .checkbox-row a, .checkbox-row .privacy-link {
+      color: var(--brand); text-decoration: underline; cursor: pointer;
+      background: none; border: 0; padding: 0; font-size: inherit; font-family: inherit;
+    }
+
+    /* 隐私协议弹窗 */
+    .privacy-modal-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      z-index: 9000; display: none; align-items: center; justify-content: center;
+      padding: 16px; backdrop-filter: blur(4px);
+    }
+    .privacy-modal-mask.show { display: flex; }
+    .privacy-modal {
+      width: 100%; max-width: 560px; max-height: 86vh;
+      background: #1a1a1a; color: var(--text);
+      border-radius: 16px; overflow: hidden;
+      display: flex; flex-direction: column;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .privacy-modal-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; border-bottom: 1px solid var(--panel-border);
+      flex-shrink: 0;
+    }
+    .privacy-modal-hd h3 { margin: 0; font-size: 16px; font-weight: 600; }
+    .privacy-modal-close {
+      background: var(--panel); border: 0; color: var(--text);
+      width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+      font-size: 18px; line-height: 1;
+    }
+    .privacy-modal-body {
+      flex: 1; overflow-y: auto; padding: 18px;
+      font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.85);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .privacy-modal-iframe {
+      width: 100%; height: 100%; border: 0; background: #0f172a;
+    }
+
+    button.submit-btn { width: 100%; margin-top: 8px; padding: 14px; border: 0;
+      background: var(--brand); color: #fff; border-radius: 12px;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    button.submit-btn:active { opacity: 0.85; }
+    button.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .next-btn { width: calc(100% - 32px); padding: 14px; border: 0;
+      background: var(--brand); color: #fff; border-radius: 12px;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    .next-btn:active { opacity: 0.85; }
+
+    .msg { padding: 10px 12px; border-radius: 8px; margin-top: 10px; font-size: 14px; }
+    .msg.ok { background: rgba(82,196,26,0.12); color: var(--ok); border: 1px solid rgba(82,196,26,0.3); }
+    .msg.err { background: rgba(255,77,79,0.12); color: var(--err); border: 1px solid rgba(255,77,79,0.3); }
+
+    /* 成功 / 已领取 模态层 */
+    .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
+    .modal-mask.show { display: flex; }
+    .modal { background: #1a1a1a; border: 1px solid var(--panel-border);
+      border-radius: 16px; padding: 28px 22px; max-width: 380px; width: 100%;
+      text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .modal h3 { margin: 0 0 8px; font-size: 20px; color: var(--text); }
+    .modal .sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+    .modal .code-label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .modal .code-val { font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 32px; font-weight: 700; color: var(--brand); letter-spacing: 6px;
+      padding: 14px; background: rgba(20,180,80,0.08);
+      border: 1px dashed var(--brand); border-radius: 10px; margin-bottom: 14px; }
+    .modal .footer-tip { color: var(--muted); font-size: 12px; }
+
+    /* 预览模式拖拽控件 */
+    .preview-controls { text-align: center; margin: 4px 0 10px; display: none; }
+    .preview-controls button {
+      background: var(--brand); color: #fff; border: none; border-radius: 6px;
+      padding: 4px 12px; font-size: 13px; cursor: pointer; margin: 0 4px;
+      opacity: 0.7; transition: opacity 0.15s;
+    }
+    .preview-controls button:hover { opacity: 1; }
+    .preview-controls .drag-hint {
+      color: var(--muted); font-size: 12px; cursor: grab; user-select: none;
+    }
+    .block-wrap.is-preview .preview-controls { display: block; }
+    .block-wrap.is-preview { padding: 8px 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===== Page 1：展示 ===== -->
+    {% comment %}
+    背景图适应模式：cover=填充裁剪 / contain=完整显示 / fill=拉伸铺满 / top=顶部对齐裁切
+    {% endcomment %}
+    <div id="page-1" class="page-section active"
+      {% if page1_bg_type == "image" and page1_bg_value %}
+        {% if page1_bg_fit == "contain" %}
+        style="background: url('{{ page1_bg_value }}') center/contain no-repeat, var(--accent);"
+        {% elif page1_bg_fit == "fill" %}
+        style="background: url('{{ page1_bg_value }}') center/100% 100% no-repeat, var(--accent);"
+        {% elif page1_bg_fit == "top" %}
+        style="background: url('{{ page1_bg_value }}') top center/100% auto no-repeat, var(--accent);"
+        {% else %}
+        style="background: url('{{ page1_bg_value }}') center/cover no-repeat, var(--accent);"
+        {% endif %}
+      {% elif page1_bg_value %}
+      style="background: {{ page1_bg_value }};"
+      {% endif %}>
+      <div class="hdr">
+        {% if theme.logo_url %}<img src="{{ theme.logo_url }}" alt="logo" class="logo" />{% endif %}
+        <h1 style="color:{{ h5_page.header_font_color|default:'#FFFFFF' }};font-size:{{ h5_page.header_font_size|default:'26px' }};">{{ h5_page.header_title }}</h1>
+        <div class="subtitle" style="color:{{ h5_page.header_font_color|default:'#FFFFFF' }};">{{ h5_page.header_subtitle }}</div>
+      </div>
+      <!-- 内容区块 -->
+      <div id="blocks-area"></div>
+      <!-- 跳转按钮 -->
+      <button class="next-btn" id="btn-go-page2"
+        style="background:{{ h5_page.page1_button_bg_color|default:h5_page.submit_button.color|default:theme.brand_color }};color:{{ h5_page.page1_button_font_color|default:'#FFFFFF' }};font-size:{{ h5_page.page1_button_font_size|default:'16px' }};">
+        {{ h5_page.page1_button_text|default:"下一步" }}
+      </button>
+    </div>
+
+    <!-- ===== Page 2：表单 ===== -->
+    <div id="page-2" class="page-section"
+      {% if page2_bg_type == "image" and page2_bg_value %}
+        {% if page2_bg_fit == "contain" %}
+        style="background: url('{{ page2_bg_value }}') center/contain no-repeat, var(--accent);"
+        {% elif page2_bg_fit == "fill" %}
+        style="background: url('{{ page2_bg_value }}') center/100% 100% no-repeat, var(--accent);"
+        {% elif page2_bg_fit == "top" %}
+        style="background: url('{{ page2_bg_value }}') top center/100% auto no-repeat, var(--accent);"
+        {% else %}
+        style="background: url('{{ page2_bg_value }}') center/cover no-repeat, var(--accent);"
+        {% endif %}
+      {% elif page2_bg_value %}
+      style="background: {{ page2_bg_value }};"
+      {% endif %}>
+      <form class="form-card" id="claim-form" onsubmit="return submitForm(event)">
+        <div id="fields-area"></div>
+
+        {% if h5_page.privacy.enabled %}
+        <div class="checkbox-row">
+          <input type="checkbox" id="privacy-check" />
+          <label for="privacy-check">{{ h5_page.privacy.text|default:"我已阅读并同意"|safe }}</label>
+          <button type="button" class="privacy-link" onclick="openPrivacyModal();return false;">《客户隐私协议》</button>
+          {% if h5_page.privacy.url %}<a href="{{ h5_page.privacy.url }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">外链</a>{% endif %}
+        </div>
+        {% endif %}
+
+        <input type="hidden" id="machine-id" value="{{ machine.machine_id|default:'' }}" />
+        <button type="submit" class="submit-btn" id="btn-submit"
+          style="background: {{ h5_page.submit_button.color|default:theme.brand_color }};">
+          {{ h5_page.submit_button.text|default:"立即领取" }}
+        </button>
+        <div id="msg" class="msg" style="display:none;"></div>
+      </form>
+
+      <div class="footer">
+        Powered by GUSH 2.0 · {{ now|date:"Y" }}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== 隐私协议弹窗 ===== -->
+  <div class="privacy-modal-mask" id="privacy-modal-mask" onclick="if(event.target===this)closePrivacyModal()">
+    <div class="privacy-modal">
+      <div class="privacy-modal-hd">
+        <h3>客户隐私协议</h3>
+        <button class="privacy-modal-close" type="button" onclick="closePrivacyModal()" aria-label="关闭">×</button>
+      </div>
+      <div class="privacy-modal-body" id="privacy-modal-body">加载中…</div>
+    </div>
+  </div>
+
+  <!-- ===== Page 3：成功 / 已领取 模态层 ===== -->
+  <div class="modal-mask" id="modal-mask">
+    <div class="modal">
+      <h3 id="modal-title">{{ h5_page.success_view.title }}</h3>
+      <div class="sub" id="modal-sub">{{ h5_page.success_view.subtitle }}</div>
+      <div class="code-label">{{ h5_page.success_view.code_label }}</div>
+      <div class="code-val" id="modal-code">- - - - - -</div>
+      <div class="footer-tip">{{ h5_page.success_view.footer_tip }}</div>
+      <button class="modal-btn" id="btn-back-home" style="margin-top:18px;background:var(--brand);color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:15px;cursor:pointer">返回首页</button>
+    </div>
+  </div>
+
+  <script>
+    // ============ 后台配置注入 ============
+    const PAGE_CONFIG = {
+      projectId: {{ project.id }},
+      machineId: "{{ machine.machine_id|default:'' }}",
+      rateLimit: "{{ h5_page.rate_limit }}",
+      blocks: {{ blocks_json|safe }},
+      fields: {{ fields_json|safe }},
+      // Phase 2.3 A/B
+      experimentId: "{{ experiment_id }}",
+      variantKey: "{{ variant_key }}",
+      // Phase 2.4：编辑器预览模式不上报、不入统计
+      isPreview: {% if is_preview %}true{% else %}false{% endif %},
+      // Phase 2.5：隐私协议
+      h5PageId: {{ h5_page_id|default:0 }},
+      privacyPolicyText: "{{ privacy_policy_text|escapejs }}",
+    };
+
+    // ============ 隐私协议弹窗 ============
+    let _privacyLoaded = false;
+    async function openPrivacyModal() {
+      const mask = document.getElementById('privacy-modal-mask');
+      const body = document.getElementById('privacy-modal-body');
+      if (!mask || !body) return;
+      mask.classList.add('show');
+      document.body.style.overflow = 'hidden';
+
+      if (_privacyLoaded) return;
+
+      // 优先用后端注入的正文；为空时再调 API；都没有则用兜底
+      let content = (PAGE_CONFIG.privacyPolicyText || "").trim();
+      if (!content && PAGE_CONFIG.h5PageId) {
+        try {
+          const r = await fetch('/api/public/privacy/' + PAGE_CONFIG.h5PageId + '/');
+          if (r.ok) {
+            const j = await r.json();
+            content = (j.policy_content || "").trim();
+          }
+        } catch (e) {}
+      }
+      if (!content) {
+        content = '【客户隐私协议】\n\n' +
+          '本协议是您与本平台之间就个人信息收集、使用与保护达成的约定。\n\n' +
+          '一、信息收集范围\n' +
+          '为完成本次礼品/样品领取，我们将收集您主动填写的表单信息（如手机号、姓名等），以及您访问本页面时的设备指纹、IP 等基础日志，用于身份识别、防止重复领取与异常风控。\n\n' +
+          '二、信息使用目的\n' +
+          '我们仅在完成本次活动、生成兑换码、配送派样以及相关售后服务范围内使用您的信息。未经您单独同意，不会用于其他商业目的，不会向第三方出售。\n\n' +
+          '三、信息保护\n' +
+          '我们采用加密存储、访问审计等手段对您的个人信息加以保护。除法律法规要求或经您本人同意外，不会向任何第三方披露。\n\n' +
+          '四、您的权利\n' +
+          '您有权随时联系活动主办方查询、更正、删除个人信息或撤回授权。撤回授权后，您的兑换码可能因此失效。\n\n' +
+          '五、协议变更\n' +
+          '我们可能根据法律法规或业务需要更新本协议，更新后将在本页面公布。\n\n' +
+          '如对本协议有任何疑问，请通过派样机背面或活动现场提供的联系方式与我们沟通。';
+      }
+      body.textContent = content;
+      _privacyLoaded = true;
+    }
+    function closePrivacyModal() {
+      const mask = document.getElementById('privacy-modal-mask');
+      if (mask) mask.classList.remove('show');
+      document.body.style.overflow = '';
+    }
+
+    // ============ 页面跳转 ============
+    document.getElementById("btn-go-page2").addEventListener("click", function() {
+      document.getElementById("page-1").classList.remove("active");
+      document.getElementById("page-2").classList.add("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    document.getElementById("btn-back-home").addEventListener("click", function() {
+      document.getElementById("modal-mask").classList.remove("show");
+      document.getElementById("page-1").classList.add("active");
+      document.getElementById("page-2").classList.remove("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // ============ Phase 2.2 访问上报 ============
+    let VISIT_ID = null;
+    (function reportVisit() {
+      // Phase 2.4：预览模式不上报
+      if (PAGE_CONFIG.isPreview) return;
+      let fp = "";
+      try {
+        fp = localStorage.getItem("gush_device_fp") || "";
+        if (!fp) {
+          fp = "fp_" + Math.random().toString(36).slice(2) + "_" + Date.now().toString(36);
+          localStorage.setItem("gush_device_fp", fp);
+        }
+      } catch (e) {}
+
+      const params = new URLSearchParams(location.search);
+      const payload = {
+        page_type: "h5",
+        project_id: PAGE_CONFIG.projectId,
+        machine_id: PAGE_CONFIG.machineId,
+        device_fp: fp,
+        referrer: document.referrer || "",
+        utm_source: params.get("utm_source") || "",
+        utm_campaign: params.get("utm_campaign") || "",
+        experiment_id: PAGE_CONFIG.experimentId || null,
+        variant_key: PAGE_CONFIG.variantKey || "",
+      };
+      try { document.cookie = `gush_device_fp=${fp}; path=/; max-age=${60*60*24*365}`; } catch (e) {}
+      try {
+        fetch("/api/public/visit/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        }).then(r => r.ok ? r.json() : null).then(j => {
+          if (j && j.visit_id) VISIT_ID = j.visit_id;
+        }).catch(() => {});
+      } catch (e) {}
+    })();
+
+    // ============ 渲染 blocks ============
+    (function renderBlocks() {
+      const area = document.getElementById("blocks-area");
+      const blocks = PAGE_CONFIG.blocks || [];
+      blocks.forEach((b, idx) => {
+        // 预览模式下的外包装
+        const wrap = document.createElement("div");
+        wrap.className = "block-wrap";
+        if (PAGE_CONFIG.isPreview) wrap.classList.add("is-preview");
+        // 实际 block DOM
+        const div = document.createElement("div");
+        div.className = "block " + (b.type || "text");
+        const p = b.props || {};
+        if (p.align) div.style.textAlign = p.align;
+        switch (b.type) {
+          case "image":
+            if (p.url) div.innerHTML = `<img src="${escapeAttr(p.url)}" alt="${escapeAttr(p.alt||"")}" />`;
+            break;
+          case "video":
+            if (p.url) div.innerHTML = `<video src="${escapeAttr(p.url)}" controls ${p.autoplay?"autoplay muted":""} ${p.loop?"loop":""} playsinline></video>`;
+            break;
+          case "text":
+            div.textContent = p.content || "";
+            break;
+          case "rich_text":
+            div.innerHTML = p.html || "";
+            break;
+          case "divider":
+            break;
+          case "countdown":
+            div.textContent = p.label || "";
+            break;
+          default:
+            div.textContent = JSON.stringify(b);
+        }
+        wrap.appendChild(div);
+        // 预览模式拖拽控件
+        if (PAGE_CONFIG.isPreview) {
+          const ctrl = document.createElement("div");
+          ctrl.className = "preview-controls";
+          ctrl.innerHTML = `
+            <span class="drag-hint">⠿ 拖动排序</span>
+            <button class="pv-up" data-idx="${idx}">&#9650; 上移</button>
+            <button class="pv-down" data-idx="${idx}">&#9660; 下移</button>
+          `;
+          ctrl.querySelector(".pv-up").addEventListener("click", function() {
+            const i = parseInt(this.dataset.idx);
+            if (i <= 0) return;
+            swapBlocks(i, i - 1);
+          });
+          ctrl.querySelector(".pv-down").addEventListener("click", function() {
+            const i = parseInt(this.dataset.idx);
+            if (i >= blocks.length - 1) return;
+            swapBlocks(i, i + 1);
+          });
+          wrap.appendChild(ctrl);
+        }
+        area.appendChild(wrap);
+      });
+
+      // 预览模式交换 block 顺序（向父窗口发送消息）
+      function swapBlocks(from, to) {
+        window.parent.postMessage({
+          type: "gush-block-reorder",
+          fromIndex: from,
+          toIndex: to,
+        }, "*");
+      }
+    })();
+
+    // 应用头部和按钮位置
+    (function applyPositions() {
+      var hdrPos = {{ header_position_json|safe }};
+      var btnPos = {{ button_position_json|safe }};
+      var hdrEl = document.querySelector('#page-1 .hdr');
+      var btnEl = document.querySelector('#page-1 .next-btn');
+      if (hdrEl && hdrPos) { hdrEl.style.top = hdrPos.y + '%'; }
+      if (btnEl && btnPos) { btnEl.style.top = btnPos.y + '%'; }
+    })();
+
+    // ============ 渲染 form_fields ============
+    (function renderFields() {
+      const area = document.getElementById("fields-area");
+      (PAGE_CONFIG.fields || []).forEach((f) => {
+        const row = document.createElement("div");
+        row.className = "form-row";
+        row.dataset.key = f.key;
+        row.dataset.required = f.required ? "1" : "0";
+        row.dataset.validate = f.validate_regex || "";
+        row.dataset.error = f.error_msg || "请填写" + (f.label || f.key);
+
+        const lbl = document.createElement("label");
+        lbl.textContent = f.label || f.key;
+        if (f.required) lbl.innerHTML += '<span class="req">*</span>';
+        row.appendChild(lbl);
+
+        if (f.type === "radio") {
+          const group = document.createElement("div");
+          group.className = "radio-group";
+          (f.options || []).forEach((opt, idx) => {
+            const id = `f-${f.key}-${idx}`;
+            const w = document.createElement("label");
+            w.className = "radio-opt";
+            w.setAttribute("for", id);
+            w.innerHTML = `
+              <input type="radio" name="${escapeAttr(f.key)}" id="${id}" value="${escapeAttr(opt.value)}" />
+              <span>
+                <div class="lbl">${escapeHtml(opt.label || "")}</div>
+                ${opt.sublabel ? `<div class="sub">${escapeHtml(opt.sublabel)}</div>` : ""}
+              </span>`;
+            w.addEventListener("click", () => {
+              group.querySelectorAll(".radio-opt").forEach((x) => x.classList.remove("active"));
+              w.classList.add("active");
+              w.querySelector("input").checked = true;
+            });
+            group.appendChild(w);
+          });
+          row.appendChild(group);
+        } else if (f.type === "select") {
+          const sel = document.createElement("select");
+          sel.name = f.key;
+          (f.options || []).forEach((opt) => {
+            const o = document.createElement("option");
+            o.value = opt.value;
+            o.textContent = opt.label;
+            sel.appendChild(o);
+          });
+          row.appendChild(sel);
+        } else if (f.type === "gender") {
+          const group = document.createElement("div");
+          group.className = "gender-group";
+          (f.options && f.options.length ? f.options : [{value:'male',label:'男'},{value:'female',label:'女'}]).forEach((opt, idx) => {
+            const id = "f-" + f.key + "-" + idx;
+            const w = document.createElement("label");
+            w.className = "radio-opt";
+            w.setAttribute("for", id);
+            w.innerHTML = '<input type="radio" name="' + f.key + '" id="' + id + '" value="' + opt.value + '" />' +
+              '<span class="lbl">' + opt.label + '</span>';
+            w.addEventListener("click", function() {
+              group.querySelectorAll(".radio-opt").forEach(function(x){x.classList.remove("active")});
+              w.classList.add("active");
+              w.querySelector("input").checked = true;
+            });
+            group.appendChild(w);
+          });
+          row.appendChild(group);
+        } else if (f.type === "age") {
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.name = f.key;
+          inp.placeholder = f.placeholder || "请输入年龄";
+          inp.min = "1";
+          inp.max = "150";
+          inp.className = "input";
+          row.appendChild(inp);
+        } else if (f.type === "multi_select") {
+          const group = document.createElement("div");
+          group.className = "multi-group";
+          (f.options || []).forEach((opt, idx) => {
+            const id = "f-" + f.key + "-" + idx;
+            const w = document.createElement("label");
+            w.className = "multi-opt";
+            w.setAttribute("for", id);
+            w.innerHTML = '<input type="checkbox" name="' + f.key + '" id="' + id + '" value="' + opt.value + '" />' +
+              '<span class="lbl">' + opt.label + '</span>';
+            w.querySelector("input").addEventListener("change", function() {
+              w.classList.toggle("active", this.checked);
+            });
+            group.appendChild(w);
+          });
+          row.appendChild(group);
+        } else if (f.type === "checkbox") {
+          const w = document.createElement("label");
+          w.className = "checkbox-row";
+          w.innerHTML = `<input type="checkbox" name="${escapeAttr(f.key)}" /> <span>${escapeHtml(f.placeholder||f.label||"")}</span>`;
+          row.appendChild(w);
+        } else {
+          const inp = document.createElement("input");
+          inp.type = f.type === "tel" ? "tel" : "text";
+          inp.name = f.key;
+          inp.placeholder = f.placeholder || "";
+          if (f.type === "tel") { inp.inputMode = "numeric"; inp.maxLength = 11; }
+          row.appendChild(inp);
+        }
+        area.appendChild(row);
+      });
+    })();
+
+    // ============ 工具 ============
+    function escapeHtml(s) { return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+    function escapeAttr(s) { return escapeHtml(s); }
+    function showMsg(text, kind) {
+      const $m = document.getElementById("msg");
+      $m.className = "msg " + kind;
+      $m.textContent = text;
+      $m.style.display = "block";
+    }
+    function showModal(code) {
+      document.getElementById("modal-code").textContent = code || "- - - - - -";
+      document.getElementById("modal-mask").classList.add("show");
+    }
+
+    // ============ 频控：本地标记 ============
+    function rateKey() {
+      const mid = PAGE_CONFIG.machineId || "default";
+      const day = new Date().toISOString().slice(0,10);
+      return `gush_claim_${PAGE_CONFIG.projectId}_${mid}_${day}`;
+    }
+    (function checkLocalRate() {
+      if (PAGE_CONFIG.rateLimit === "none") return;
+      const had = localStorage.getItem(rateKey());
+      if (had) {
+        showModal(had);
+      }
+    })();
+
+    // ============ 提交表单 ============
+    async function submitForm(ev) {
+      ev.preventDefault();
+      const rows = document.querySelectorAll(".form-row");
+      const payload = {};
+      for (const row of rows) {
+        const key = row.dataset.key;
+        const required = row.dataset.required === "1";
+        const regex = row.dataset.validate;
+        let value = "";
+        const radio = row.querySelector("input[type=radio]:checked");
+        const cbs = row.querySelectorAll("input[type=checkbox]:checked");
+        const sel = row.querySelector("select");
+        const inp = row.querySelector("input[type=text], input[type=tel], input[type=number]");
+        if (radio) value = radio.value;
+        else if (sel) value = sel.value;
+        else if (cbs.length) value = Array.from(cbs).map(c => c.value).join(",");
+        else if (inp) value = inp.value.trim();
+
+        if (required && !value) {
+          showMsg(row.dataset.error || "请填写完整", "err");
+          return false;
+        }
+        if (value && regex) {
+          try {
+            const re = new RegExp(regex);
+            if (!re.test(value)) {
+              showMsg(row.dataset.error || "格式不正确", "err");
+              return false;
+            }
+          } catch (e) { }
+        }
+        payload[key] = value;
+      }
+
+      const pchk = document.getElementById("privacy-check");
+      if (pchk && !pchk.checked) {
+        showMsg("请先勾选并同意隐私协议", "err");
+        return false;
+      }
+
+      const $btn = document.getElementById("btn-submit");
+      $btn.disabled = true;
+      const orig = $btn.textContent;
+      $btn.textContent = "处理中...";
+      try {
+        const resp = await fetch("/api/public/claim/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            project_id: PAGE_CONFIG.projectId,
+            machine_id: PAGE_CONFIG.machineId,
+            form: payload,
+            visit_id: VISIT_ID,
+          }),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.code) {
+          if (PAGE_CONFIG.rateLimit !== "none") {
+            try { localStorage.setItem(rateKey(), data.code); } catch (_) {}
+          }
+          showModal(data.code);
+        } else {
+          showMsg("✗ " + (data.detail || "提交失败"), "err");
+        }
+      } catch (e) {
+        showMsg("网络错误：" + e.message, "err");
+      } finally {
+        $btn.disabled = false;
+        $btn.textContent = orig;
+      }
+      return false;
+    }
+  </script>
+</body>
+</html>

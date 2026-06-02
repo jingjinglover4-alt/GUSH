@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>{{ project.name }} - 项目数据看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a1f2c;
+      --border: #2a3142;
+      --text: #e6e6e6;
+      --muted: #909399;
+      --ok: #67c23a;
+      --warn: #e6a23c;
+      --err: #f56c6c;
+      --blue: #409eff;
+      --purple: #b37feb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .container { max-width: 800px; margin: 0 auto; padding: 16px; }
+
+    /* 头部 */
+    .header { padding: 20px 0 16px; }
+    .header h1 { font-size: 22px; font-weight: 600; }
+    .header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .header .sub .tag {
+      display: inline-block; padding: 1px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 500;
+    }
+    .tag.draft { background: #2a3142; color: var(--muted); }
+    .tag.running { background: #1a3a1a; color: var(--ok); }
+    .tag.paused { background: #3a2a1a; color: var(--warn); }
+    .tag.finished { background: #2a1a1a; color: var(--err); }
+    .time { color: var(--muted); }
+
+    /* 摘要网格 */
+    .grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin: 16px 0;
+    }
+    .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 12px;
+    }
+    .card .num { font-size: 26px; font-weight: 700; margin: 4px 0; }
+    .card .num.ok { color: var(--ok); }
+    .card .num.warn { color: var(--warn); }
+    .card .num.err { color: var(--err); }
+    .card .num.blue { color: var(--blue); }
+    .card .num.purple { color: var(--purple); }
+    .card .label { color: var(--muted); font-size: 12px; }
+
+    /* 区块标题 */
+    .section-title {
+      font-size: 15px; font-weight: 600; margin: 24px 0 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title .line {
+      flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* 表格状数据 */
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row .lbl { color: var(--muted); font-size: 13px; }
+    .stat-row .val { font-weight: 600; font-size: 14px; }
+
+    /* 漏斗 */
+    .funnel {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 8px 0;
+    }
+    .funnel-step {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .funnel-step .bar-wrap {
+      flex: 1; height: 28px; background: #0a0e13; border-radius: 6px;
+      overflow: hidden; position: relative;
+    }
+    .funnel-step .bar {
+      height: 100%; border-radius: 6px;
+      display: flex; align-items: center; padding-left: 10px;
+      font-size: 12px; font-weight: 600; color: #fff;
+      min-width: 40px;
+    }
+    .funnel-step .bar.visits { background: #409eff; }
+    .funnel-step .bar.claims { background: #67c23a; }
+    .funnel-step .bar.redeems { background: #b37feb; }
+    .funnel-step .fval { font-size: 13px; font-weight: 600; min-width: 60px; text-align: right; }
+    .funnel-step .flbl { font-size: 12px; color: var(--muted); min-width: 40px; }
+
+    /* 图表容器 - 不再用 CSS 覆盖 canvas 尺寸，让 Chart.js 自行管理 */
+    .chart-wrap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px; margin-top: 8px;
+      position: relative;
+      height: 220px;
+    }
+
+    /* 转化率 */
+    .conv-row {
+      display: flex; gap: 10px; margin: 12px 0;
+    }
+    .conv-card {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; text-align: center;
+    }
+    .conv-card .pct { font-size: 22px; font-weight: 700; color: var(--blue); }
+    .conv-card .lbl { color: var(--muted); font-size: 11px; margin-top: 4px; }
+
+    /* 加载 / 错误 */
+    .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .loading .spinner {
+      display: inline-block; width: 32px; height: 32px;
+      border: 3px solid var(--border); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-card {
+      background: #2a1414; border: 1px solid var(--err); border-radius: 10px;
+      padding: 20px; text-align: center; margin-top: 40px;
+    }
+    .error-card .err-icon { font-size: 40px; margin-bottom: 8px; }
+    .error-card p { color: var(--err); }
+
+    /* 页脚 */
+    .footer { text-align: center; color: var(--muted); font-size: 11px; padding: 32px 0 16px; }
+
+    @media (max-width: 480px) {
+      .container { padding: 12px; }
+      .header h1 { font-size: 18px; }
+      .card .num { font-size: 20px; }
+      .grid-4 { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p style="margin-top:12px">加载项目数据...</p>
+    </div>
+  </div>
+
+  <script>
+  const API_URL = '{{ dashboard_api_url|safe }}';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const resp = await fetch(API_URL);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      render(data);
+    } catch (e) {
+      document.getElementById('loading').innerHTML = `
+        <div class="error-card">
+          <p style="font-size:28px;margin-bottom:4px">!</p>
+          <p>数据加载失败</p>
+          <p style="color:var(--muted);font-size:12px;margin-top:8px">${e.message}</p>
+        </div>`;
+    }
+  });
+
+  function render(d) {
+    const p = d.project, m = d.machines, ch = d.channels, dp = d.dispenses, f = d.funnel;
+
+    const statusTag = { running: '进行中', paused: '已暂停', finished: '已结束', draft: '草稿' }[p.status] || p.status_label;
+
+    let remainingHtml = '';
+    if (p.time_remaining_seconds > 0) {
+      const days = Math.floor(p.time_remaining_seconds / 86400);
+      const hours = Math.floor((p.time_remaining_seconds % 86400) / 3600);
+      remainingHtml = `<span class="time" style="color:${days <= 3 ? 'var(--err)' : 'var(--muted)'}">剩余 ${days}天${hours}时</span>`;
+    }
+
+    document.getElementById('loading').outerHTML = `
+      <div class="header">
+        <h1>${esc(p.name)}</h1>
+        <div class="sub">
+          <span class="tag ${p.status}">${statusTag}</span>
+          <span class="time">${p.starts_at ? fmtDate(p.starts_at) : '—'} ~ ${p.ends_at ? fmtDate(p.ends_at) : '—'}</span>
+          ${remainingHtml}
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="label">设备总数</div>
+          <div class="num ok">${m.total}</div>
+          <div class="label" style="font-size:11px">在线 ${m.online} · 离线 ${m.offline} · 故障 ${m.fault}</div>
+        </div>
+        <div class="card">
+          <div class="label">货道库存</div>
+          <div class="num blue">${ch.total_stock}</div>
+          <div class="label" style="font-size:11px">有货 ${ch.stocked}/${ch.total} · 故障 ${ch.fault}</div>
+        </div>
+        <div class="card">
+          <div class="label">今日出货</div>
+          <div class="num warn">${dp.today}</div>
+          <div class="label" style="font-size:11px">累计 ${dp.total} · 近7天 ${dp.last_7d}</div>
+        </div>
+        <div class="card">
+          <div class="label">核销转化</div>
+          <div class="num purple">${f.conversion_claim_rate}%</div>
+          <div class="label" style="font-size:11px">领码 ${f.claims.total} · 核销 ${f.redeems.total}</div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span>出货趋势（近30天）</span>
+        <span class="line"></span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="trendChart"></canvas>
+      </div>
+
+      <div class="section-title">
+        <span>转化漏斗（近7天）</span>
+        <span class="line"></span>
+      </div>
+      <div class="card">
+        <div class="funnel">
+          <div class="funnel-step">
+            <span class="flbl">访问</span>
+            <div class="bar-wrap"><div class="bar visits" id="barVisit">${f.h5_visits.last_7d + f.led_visits.last_7d}</div></div>
+            <span class="fval">${f.h5_visits.last_7d + f.led_visits.last_7d}</span>
+          </div>
+          <div class="funnel-step">
+            <span class="flbl">领码</span>
+            <div class="bar-wrap"><div class="bar claims" id="barClaim">${f.claims.last_7d}</div></div>
+            <span class="fval">${f.claims.last_7d}</span>
+          </div>
+          <div class="funnel-step">
+            <span class="flbl">核销</span>
+            <div class="bar-wrap"><div class="bar redeems" id="barRedeem">${f.redeems.last_7d}</div></div>
+            <span class="fval">${f.redeems.last_7d}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="conv-row">
+        <div class="conv-card">
+          <div class="pct">${f.conversion_visit_to_redeem}%</div>
+          <div class="lbl">整体转化率<br><small style="color:#606266">访问 → 核销</small></div>
+        </div>
+        <div class="conv-card">
+          <div class="pct">${f.conversion_claim_rate}%</div>
+          <div class="lbl">领码核销率<br><small style="color:#606266">领码 → 核销</small></div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span>数据总览</span>
+        <span class="line"></span>
+      </div>
+      <div class="card">
+        <div class="stat-row"><span class="lbl">H5 页面访问（累计）</span><span class="val">${f.h5_visits.total}</span></div>
+        <div class="stat-row"><span class="lbl">LED 大屏曝光（累计）</span><span class="val">${f.led_visits.total}</span></div>
+        <div class="stat-row"><span class="lbl">兑换码领取（累计）</span><span class="val">${f.claims.total}</span></div>
+        <div class="stat-row"><span class="lbl">兑换码核销（累计）</span><span class="val">${f.redeems.total}</span></div>
+        <div class="stat-row"><span class="lbl">出货成功（累计）</span><span class="val">${dp.success}</span></div>
+        <div class="stat-row"><span class="lbl">设备在线率</span><span class="val">${m.online_rate}%</span></div>
+      </div>
+
+      <div class="footer">GUSH 派样机 SaaS · 数据看板</div>
+    `;
+
+    // 漏斗柱状图宽度
+    const maxF = Math.max(f.h5_visits.last_7d + f.led_visits.last_7d, f.claims.last_7d, f.redeems.last_7d, 1);
+    document.getElementById('barVisit').style.width = '100%';
+    document.getElementById('barClaim').style.width = (f.claims.last_7d / maxF * 100) + '%';
+    document.getElementById('barRedeem').style.width = (f.redeems.last_7d / maxF * 100) + '%';
+
+    // 出货趋势图
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: dp.trend.map(t => t.date.slice(5)),
+        datasets: [{
+          label: '出货量',
+          data: dp.trend.map(t => t.count),
+          backgroundColor: '#409eff',
+          borderRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { color: '#909399', font: { size: 10 }, maxTicksLimit: 15 },
+            grid: { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#909399', font: { size: 10 }, stepSize: 1 },
+            grid: { color: '#2a3142' }
+          }
+        }
+      }
+    });
+  }
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+  }
+
+  function esc(s) {
+    const el = document.createElement('span');
+    el.textContent = s;
+    return el.innerHTML;
+  }
+  </script>
+</body>
+</html>
