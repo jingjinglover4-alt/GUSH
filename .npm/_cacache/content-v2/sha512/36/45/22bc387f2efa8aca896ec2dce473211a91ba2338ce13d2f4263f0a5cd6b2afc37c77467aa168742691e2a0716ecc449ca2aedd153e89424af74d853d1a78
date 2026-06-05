@@ -1,0 +1,63 @@
+{
+  "name": "console-control-strings",
+  "dist-tags": {
+    "latest": "1.1.0"
+  },
+  "versions": {
+    "1.0.0": {
+      "name": "console-control-strings",
+      "version": "1.0.0",
+      "description": "A library of cross-platform tested terminal/console command strings for doing things like color and cursor positioning.  This is a subset of both ansi and vt100.  All control codes included work on both Windows & Unix-like OSes, except where noted.",
+      "dist": {
+        "shasum": "4e6aac25444ab157f528a4487d6524a25c506a4f",
+        "tarball": "http://mirrors.tencentyun.com/npm/console-control-strings/-/console-control-strings-1.0.0.tgz",
+        "integrity": "sha512-hndCl0vX8l3MXWXqdr4gYUul6HcEjHM2LI32V4Io60avllJxK69+9oomte/XR7vB92vAeUDV2q/qeDht2s+6IQ==",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEUCIEkZWAFs3eBPmXR6wkrk+nHPhYEjDpM5ri46avNiyxF8AiEA8COSOrELJQ9DML0nRY4NUcsXiWtOT532Dk/Ss805f/4="
+          }
+        ]
+      },
+      "directories": {
+        "test": "test"
+      },
+      "devDependencies": {
+        "standard": "^7.1.2",
+        "tap": "^5.7.2"
+      },
+      "hasInstallScript": false
+    },
+    "1.1.0": {
+      "name": "console-control-strings",
+      "version": "1.1.0",
+      "description": "A library of cross-platform tested terminal/console command strings for doing things like color and cursor positioning.  This is a subset of both ansi and vt100.  All control codes included work on both Windows & Unix-like OSes, except where noted.",
+      "dist": {
+        "shasum": "3d7cf4464db6446ea644bf4b39507f9851008e8e",
+        "tarball": "http://mirrors.tencentyun.com/npm/console-control-strings/-/console-control-strings-1.1.0.tgz",
+        "integrity": "sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEYCIQCH9Dtp4o2bsU+1KJI69XV2W99cqKVP0xwzWEj/YXe37wIhAKOFsJa62I6S+Wil01b1c//hPtUs7w75aYxyp78T0vGE"
+          }
+        ]
+      },
+      "directories": {
+        "test": "test"
+      },
+      "devDependencies": {
+        "standard": "^7.1.2",
+        "tap": "^5.7.2"
+      },
+      "hasInstallScript": false
+    }
+  },
+  "modified": "2022-06-13T21:57:51.729Z",
+  "time": {
+    "modified": "2022-06-13T21:57:51.729Z",
+    "created": "2016-06-15T21:15:45.301Z",
+    "1.0.0": "2016-06-15T21:15:45.301Z",
+    "1.1.0": "2016-06-15T23:29:58.743Z"
+  }
+}

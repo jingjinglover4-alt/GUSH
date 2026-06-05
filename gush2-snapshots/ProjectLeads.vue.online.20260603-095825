@@ -1,0 +1,328 @@
+<template>
+  <div v-loading="loading" class="leads">
+    <!-- 顶栏 -->
+    <el-card shadow="never" class="hdr-card">
+      <div class="hdr">
+        <el-button :icon="ArrowLeft" link @click="$router.push(`/projects/${projectId}`)">返回项目</el-button>
+        <span class="title">{{ projectName }} · 用户获客</span>
+        <div class="spacer" />
+        <el-button :icon="Download" @click="doExport">导出 CSV</el-button>
+        <el-button :icon="Refresh" @click="reload">刷新</el-button>
+      </div>
+    </el-card>
+
+    <!-- KPI 画像汇总 -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">总人脸观测</div>
+        <div class="kpi-value">{{ summary?.total_faces ?? 0 }}</div>
+        <div class="kpi-sub">已领码 {{ summary?.claimed_faces ?? 0 }}</div>
+      </div>
+      <div class="kpi-card success">
+        <div class="kpi-label">微笑率</div>
+        <div class="kpi-value">{{ summary?.smile_ratio ?? 0 }}%</div>
+        <div class="kpi-sub">{{ summary?.smile_count ?? 0 }} 张微笑</div>
+      </div>
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">性别分布</div>
+        <div ref="genderChartEl" class="kpi-chart" />
+      </div>
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">年龄段分布</div>
+        <div ref="ageChartEl" class="kpi-chart" />
+      </div>
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">情绪分布</div>
+        <div ref="emotionChartEl" class="kpi-chart" />
+      </div>
+    </div>
+
+    <!-- 筛选 + 表格 -->
+    <el-card shadow="never" class="filter-card">
+      <div class="filter-row">
+        <el-input v-model="filters.search" placeholder="搜索 称呼 / 兑换码"
+                  style="width:200px" clearable @keyup.enter="reload" />
+        <el-select v-model="filters.status" placeholder="状态" clearable style="width:120px" @change="reload">
+          <el-option label="未使用" value="unused" />
+          <el-option label="已使用" value="used" />
+          <el-option label="已过期" value="expired" />
+          <el-option label="已作废" value="revoked" />
+        </el-select>
+        <el-select v-model="filters.gender" placeholder="性别" clearable style="width:100px" @change="reload">
+          <el-option label="男" value="male" />
+          <el-option label="女" value="female" />
+        </el-select>
+        <el-select v-model="filters.age_range" placeholder="年龄段" clearable style="width:140px" @change="reload">
+          <el-option label="儿童" value="child" />
+          <el-option label="青少年" value="teen" />
+          <el-option label="青年 (18-30)" value="young_adult" />
+          <el-option label="中年 (31-50)" value="adult" />
+          <el-option label="中老年 (51+)" value="senior" />
+        </el-select>
+        <el-select v-model="filters.emotion" placeholder="情绪" clearable style="width:120px" @change="reload">
+          <el-option label="开心" value="happy" />
+          <el-option label="平静" value="neutral" />
+          <el-option label="惊讶" value="surprised" />
+          <el-option label="悲伤" value="sad" />
+          <el-option label="生气" value="angry" />
+          <el-option label="厌恶" value="disgusted" />
+          <el-option label="害怕" value="fear" />
+        </el-select>
+        <el-button :icon="Search" type="primary" @click="reload">查询</el-button>
+        <el-button :icon="RefreshLeft" @click="resetFilters">重置</el-button>
+      </div>
+    </el-card>
+
+    <!-- 表格 -->
+    <el-card shadow="never">
+      <el-table :data="rows" stripe size="small" empty-text="暂无数据">
+        <el-table-column label="领码时间" width="150">
+          <template #default="{ row }">{{ formatTime(row.claimed_at) }}</template>
+        </el-table-column>
+        <el-table-column prop="user_nickname" label="称呼" width="100">
+          <template #default="{ row }">{{ row.user_nickname || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="兑换码" width="100">
+          <template #default="{ row }"><span class="code-cell">{{ row.code }}</span></template>
+        </el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusTag(row.status)">{{ row.status_label }}</el-tag>
+          </template>
+        </el-table-column>
+
+        <!-- 画像列 -->
+        <el-table-column label="画像（摄像头）" min-width="280">
+          <template #default="{ row }">
+            <template v-if="row.face">
+              <el-tag size="small" :type="row.face.gender === 'female' ? 'danger' : 'primary'" effect="plain">
+                {{ row.face.gender_label }}
+              </el-tag>
+              <el-tag size="small" type="info" effect="plain" style="margin-left:6px">
+                {{ row.face.age || '?' }} 岁 · {{ row.face.age_range_label }}
+              </el-tag>
+              <el-tag size="small" type="warning" effect="plain" style="margin-left:6px">
+                {{ emotionIcon(row.face.dominant_emotion) }} {{ row.face.dominant_emotion_label }}
+              </el-tag>
+              <el-tag v-if="row.face.is_smiling" size="small" type="success" effect="dark" style="margin-left:6px">
+                😊 微笑
+              </el-tag>
+            </template>
+            <span v-else style="color: var(--el-text-color-secondary); font-size: 12px">— 无观测</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="设备" width="130">
+          <template #default="{ row }">
+            <div style="font-size:12px">
+              <div v-if="row.claim_machine_id">扫码: {{ row.claim_machine_id }}</div>
+              <div v-if="row.used_machine_id">核销: {{ row.used_machine_id }} / {{ row.used_channel }}</div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="核销时间" width="150">
+          <template #default="{ row }">{{ formatTime(row.used_at) || '—' }}</template>
+        </el-table-column>
+      </el-table>
+
+      <el-pagination
+        v-model:current-page="page.current"
+        v-model:page-size="page.size"
+        :total="page.total"
+        :page-sizes="[20, 30, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        @current-change="loadList"
+        @size-change="loadList"
+        style="margin-top:14px; justify-content: flex-end"
+      />
+    </el-card>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import {
+  ArrowLeft, Download, Refresh, RefreshLeft, Search
+} from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
+import { getProject } from '@/api/projects'
+import { listLeads, leadsSummary, exportLeadsCsv } from '@/api/leads'
+
+const route = useRoute()
+const projectId = Number(route.params.id)
+const projectName = ref('')
+
+const loading = ref(false)
+const rows = ref([])
+const summary = ref(null)
+const page = reactive({ current: 1, size: 30, total: 0 })
+const filters = reactive({
+  search: '', status: '', gender: '', age_range: '', emotion: ''
+})
+
+const genderChartEl = ref(null)
+const ageChartEl = ref(null)
+const emotionChartEl = ref(null)
+let genderChart = null
+let ageChart = null
+let emotionChart = null
+
+const STATUS_TAGS = { unused: 'success', used: 'info', expired: 'warning', revoked: 'danger' }
+function statusTag(s) { return STATUS_TAGS[s] || '' }
+
+const EMOTION_ICONS = {
+  happy: '😄', neutral: '😐', surprised: '😲', sad: '😢',
+  angry: '😠', disgusted: '🤢', fear: '😨'
+}
+function emotionIcon(e) { return EMOTION_ICONS[e] || '?' }
+
+function formatTime(s) {
+  if (!s) return ''
+  return new Date(s).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
+}
+
+function resetFilters() {
+  Object.assign(filters, { search: '', status: '', gender: '', age_range: '', emotion: '' })
+  reload()
+}
+
+const GENDER_LABELS = { male: '男', female: '女', unknown: '未知' }
+const AGE_LABELS = {
+  child: '儿童', teen: '青少年', young_adult: '青年',
+  adult: '中年', senior: '中老年', unknown: '未知',
+}
+const EMO_LABELS = {
+  happy: '开心', neutral: '平静', surprised: '惊讶', sad: '悲伤',
+  angry: '生气', disgusted: '厌恶', fear: '害怕', unknown: '未知',
+}
+
+function renderPie(chartRef, dataObj, labelMap, palette) {
+  if (!chartRef.value) return null
+  const chart = echarts.init(chartRef.value)
+  const data = Object.entries(dataObj || {}).map(([k, v]) => ({
+    value: v, name: labelMap[k] || k
+  }))
+  chart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    color: palette,
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['50%', '55%'],
+      label: { fontSize: 11 },
+      data,
+    }]
+  }, true)
+  return chart
+}
+
+async function loadSummary() {
+  summary.value = await leadsSummary(projectId)
+  await nextTick()
+  genderChart?.dispose()
+  ageChart?.dispose()
+  emotionChart?.dispose()
+  genderChart = renderPie(genderChartEl, summary.value.by_gender, GENDER_LABELS,
+    ['#409eff', '#f56c6c', '#909399'])
+  ageChart = renderPie(ageChartEl, summary.value.by_age_range, AGE_LABELS,
+    ['#a0cfff', '#67c23a', '#e6a23c', '#f56c6c', '#909399'])
+  emotionChart = renderPie(emotionChartEl, summary.value.by_emotion, EMO_LABELS,
+    ['#67c23a', '#909399', '#e6a23c', '#a0cfff', '#f56c6c', '#9b59b6', '#34495e'])
+}
+
+async function loadList() {
+  loading.value = true
+  try {
+    const params = {
+      page: page.current, page_size: page.size,
+    }
+    for (const [k, v] of Object.entries(filters)) {
+      if (v) params[k] = v
+    }
+    const resp = await listLeads(projectId, params)
+    rows.value = resp.results
+    page.total = resp.count
+  } finally {
+    loading.value = false
+  }
+}
+
+async function reload() {
+  page.current = 1
+  await Promise.all([loadSummary(), loadList()])
+}
+
+async function doExport() {
+  try {
+    const params = {}
+    for (const [k, v] of Object.entries(filters)) if (v) params[k] = v
+    await exportLeadsCsv(projectId, params)
+    ElMessage.success('CSV 已下载')
+  } catch (e) { /* http 拦截器已弹错 */ }
+}
+
+function onResize() {
+  genderChart?.resize()
+  ageChart?.resize()
+  emotionChart?.resize()
+}
+
+onMounted(async () => {
+  const p = await getProject(projectId)
+  projectName.value = p.name
+  await reload()
+  window.addEventListener('resize', onResize)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
+  genderChart?.dispose()
+  ageChart?.dispose()
+  emotionChart?.dispose()
+})
+</script>
+
+<style scoped>
+.leads { display: flex; flex-direction: column; gap: 14px; }
+
+.hdr-card :deep(.el-card__body) { display: none; }
+.hdr { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.hdr .title { font-size: 16px; font-weight: 600; }
+.hdr .spacer { flex: 1; }
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr 1.5fr 1.5fr;
+  gap: 12px;
+}
+.kpi-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-height: 110px;
+  display: flex; flex-direction: column;
+}
+.kpi-card.success { border-left: 4px solid var(--el-color-success); }
+.kpi-card.chart-card { padding: 10px 8px 6px; }
+.kpi-label { color: var(--el-text-color-secondary); font-size: 13px; }
+.kpi-value { font-size: 28px; font-weight: 700; margin-top: 4px; line-height: 1.1; color: var(--el-text-color-primary); }
+.kpi-sub { color: var(--el-text-color-secondary); font-size: 12px; margin-top: 6px; }
+.kpi-chart { flex: 1; min-height: 90px; }
+
+.filter-card :deep(.el-card__body) { padding: 14px 18px; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+.code-cell {
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
+  padding: 1px 8px; border-radius: 4px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+}
+
+@media (max-width: 1200px) {
+  .kpi-row { grid-template-columns: 1fr 1fr 1fr; }
+  .kpi-row > .chart-card:nth-child(n+3) { grid-column: span 1; }
+}
+</style>

@@ -1,0 +1,2649 @@
+<template>
+  <div v-loading="loading" class="page-editor">
+    <!-- 顶栏 -->
+    <el-card shadow="never" class="hdr-card">
+      <div class="hdr">
+        <el-button :icon="ArrowLeft" link @click="$router.push(`/projects/${projectId}`)">返回项目</el-button>
+        <span class="title">{{ project?.name || '页面装修' }}</span>
+        <el-tag size="small" :type="currentStatus === 'published' ? 'success' : 'warning'">
+          {{ currentBadge }}
+        </el-tag>
+        <div class="spacer" />
+        <el-button :icon="View" @click="openPreview">在线预览</el-button>
+        <!-- 变体编辑模式下隐藏「发布」按钮，避免误把变体快照发到线上 -->
+        <el-button v-if="!variantEditing" type="success" :icon="Upload" :loading="publishing" @click="onPublish">
+          {{ activeTab === 'led' ? '发布 LED 大屏' : activeTab === 'h5' ? '发布 H5 到线上' : '发布到线上' }}
+        </el-button>
+      </div>
+    </el-card>
+
+    <el-tabs v-model="activeTab" class="editor-tabs">
+      <!-- ===== 主题（已隐藏，内部仍生效；要恢复改 v-if="true"）===== -->
+      <el-tab-pane v-if="false" label="主题样式" name="theme">
+        <div class="theme-grid">
+          <el-card shadow="never" class="cfg-card">
+            <template #header><span class="card-title">品牌色彩</span></template>
+            <el-form label-width="100px" label-position="left">
+              <el-form-item label="品牌主色">
+                <el-color-picker v-model="themeForm.brand_color" show-alpha color-format="hex" />
+                <span class="hint">{{ themeForm.brand_color }}</span>
+              </el-form-item>
+              <el-form-item label="辅助色">
+                <el-color-picker v-model="themeForm.accent_color" show-alpha color-format="hex" />
+                <span class="hint">{{ themeForm.accent_color }}</span>
+              </el-form-item>
+              <el-form-item label="文字主色">
+                <el-color-picker v-model="themeForm.text_color" show-alpha color-format="hex" />
+                <span class="hint">{{ themeForm.text_color }}</span>
+              </el-form-item>
+            </el-form>
+          </el-card>
+
+          <el-card shadow="never" class="cfg-card">
+            <template #header><span class="card-title">背景</span></template>
+            <el-form label-width="100px" label-position="left">
+              <el-form-item label="背景类型">
+                <el-radio-group v-model="themeForm.background_type">
+                  <el-radio-button value="color">纯色</el-radio-button>
+                  <el-radio-button value="gradient">渐变</el-radio-button>
+                  <el-radio-button value="image">图片</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item v-if="themeForm.background_type === 'color'" label="背景色">
+                <el-color-picker v-model="themeForm.background_value" show-alpha color-format="hex" />
+                <span class="hint">{{ themeForm.background_value }}</span>
+              </el-form-item>
+              <el-form-item v-if="themeForm.background_type === 'gradient'" label="渐变 CSS">
+                <el-input
+                  v-model="themeForm.background_value" type="textarea" :rows="2"
+                  placeholder="如 linear-gradient(135deg,#0a0a0a,#1a1a1a)" />
+              </el-form-item>
+              <el-form-item v-if="themeForm.background_type === 'image'" label="背景图">
+                <el-upload
+                  :show-file-list="false"
+                  :http-request="(opt) => uploadFile('background_image', opt)"
+                  accept="image/*">
+                  <el-button :icon="Picture">选择图片</el-button>
+                </el-upload>
+                <el-image
+                  v-if="theme?.background_image_url"
+                  :src="theme.background_image_url"
+                  fit="cover"
+                  style="width:120px;height:80px;border-radius:6px;margin-left:12px" />
+              </el-form-item>
+            </el-form>
+          </el-card>
+
+          <el-card shadow="never" class="cfg-card">
+            <template #header><span class="card-title">Logo / Favicon</span></template>
+            <el-form label-width="100px" label-position="left">
+              <el-form-item label="Logo">
+                <el-upload
+                  :show-file-list="false"
+                  :http-request="(opt) => uploadFile('logo', opt)"
+                  accept="image/png,image/jpeg,image/svg+xml">
+                  <el-button :icon="Picture">上传 Logo</el-button>
+                </el-upload>
+                <el-image
+                  v-if="theme?.logo_url"
+                  :src="theme.logo_url"
+                  fit="contain"
+                  style="height:40px;margin-left:12px;background:#222;border-radius:4px;padding:4px" />
+              </el-form-item>
+              <el-form-item label="Favicon">
+                <el-upload
+                  :show-file-list="false"
+                  :http-request="(opt) => uploadFile('favicon', opt)"
+                  accept="image/png,image/x-icon,image/svg+xml">
+                  <el-button :icon="Picture">上传 Favicon</el-button>
+                </el-upload>
+                <el-image
+                  v-if="theme?.favicon_url"
+                  :src="theme.favicon_url"
+                  fit="contain"
+                  style="width:32px;height:32px;margin-left:12px;background:#222;border-radius:4px;padding:2px" />
+              </el-form-item>
+            </el-form>
+          </el-card>
+
+          <el-card shadow="never" class="cfg-card">
+            <template #header><span class="card-title">字体</span></template>
+            <el-form label-width="100px" label-position="left">
+              <el-form-item label="字体族">
+                <el-select v-model="themeForm.font_family" style="width:100%">
+                  <el-option
+                    v-for="f in fontPresets" :key="f.value"
+                    :label="f.label" :value="f.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="自定义">
+                <el-input v-model="themeForm.font_family" placeholder='如 "Noto Sans SC", sans-serif' />
+              </el-form-item>
+            </el-form>
+          </el-card>
+
+          <!-- 实时预览 -->
+          <el-card shadow="never" class="cfg-card preview-card" style="grid-column: 1 / -1">
+            <template #header>
+              <span class="card-title">实时预览</span>
+              <span class="hint" style="margin-left:8px">（仅显示主题色样式，编辑后请点保存）</span>
+            </template>
+            <div class="preview-stage" :style="previewBgStyle">
+              <div class="preview-card-inner" :style="{ fontFamily: themeForm.font_family }">
+                <div class="ph-h1" :style="{ color: themeForm.text_color }">填写信息</div>
+                <div class="ph-sub" :style="{ color: themeForm.text_color, opacity: 0.6 }">获取您的专属兑换码</div>
+                <div class="ph-btn" :style="{ background: themeForm.brand_color }">立即领取</div>
+                <div class="ph-code" :style="{ color: themeForm.brand_color, borderColor: themeForm.brand_color }">
+                  2 9 7 3 6 1
+                </div>
+              </div>
+            </div>
+          </el-card>
+        </div>
+
+        <div class="footer-bar">
+          <el-button :icon="RefreshLeft" @click="resetTheme">重置</el-button>
+          <el-button type="primary" :icon="Check" :loading="saving" @click="saveTheme">保存主题</el-button>
+        </div>
+      </el-tab-pane>
+
+      <!-- ===== H5 落地页（区块化） ===== -->
+      <el-tab-pane label="H5 落地页" name="h5">
+        <!-- Phase 2.4：变体编辑模式横幅 -->
+        <el-alert
+          v-if="variantEditing"
+          type="warning" :closable="false" show-icon
+          style="margin-bottom:14px"
+          :title="`你正在编辑实验变体「${variantEditing.key} · ${variantEditing.name || ''}」 — 保存只更新该变体快照，不影响线上 H5`"
+        >
+          <template #default>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+              <span style="color: var(--el-text-color-regular); font-size: 13px;">
+                右侧预览将仅渲染此变体；运营点「保存变体」会写入该变体的快照
+              </span>
+              <div style="flex:1" />
+              <el-button size="small" @click="exitVariantEditing">退出变体编辑</el-button>
+            </div>
+          </template>
+        </el-alert>
+
+        <div class="h5-layout">
+          <!-- 左：编辑器 -->
+          <div class="h5-edit-col">
+            <el-tabs v-model="h5PageTab" class="h5-page-tabs">
+              <!-- Page 1：展示 -->
+              <el-tab-pane label="Page 1 展示" name="page1">
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">页面背景</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="类型">
+                      <el-select v-model="h5Form.page1_background.type">
+                        <el-option label="纯色" value="color" />
+                        <el-option label="图片" value="image" />
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item v-if="h5Form.page1_background.type === 'color'" label="颜色值">
+                      <el-input v-model="h5Form.page1_background.value" placeholder="#0a0a0a" />
+                      <el-color-picker v-model="h5Form.page1_background.value" size="small" style="margin-left:8px" />
+                    </el-form-item>
+                    <el-form-item v-else label="图片">
+                      <el-upload :show-file-list="false" :http-request="(opt) => onUploadBlockImage(opt, h5Form.page1_background, 'value')" accept="image/*">
+                        <el-button :icon="Picture">上传背景图</el-button>
+                      </el-upload>
+                      <el-button v-if="h5Form.page1_background.value" :icon="Delete" type="danger" plain size="small" style="margin-left:8px" @click="h5Form.page1_background = { type: 'color', value: '#0a0a0a', fit: 'cover' }">删除</el-button>
+                      <el-image v-if="h5Form.page1_background.value" :src="h5Form.page1_background.value" fit="contain" style="width:120px;height:80px;border-radius:6px;margin-left:12px;background:#000" />
+                    </el-form-item>
+                    <el-form-item v-if="h5Form.page1_background.type === 'image' && h5Form.page1_background.value" label="图片适应">
+                      <el-radio-group v-model="h5Form.page1_background.fit">
+                        <el-radio-button value="cover">填充裁剪</el-radio-button>
+                        <el-radio-button value="contain">完整显示</el-radio-button>
+                        <el-radio-button value="fill">拉伸铺满</el-radio-button>
+                        <el-radio-button value="top">顶部对齐</el-radio-button>
+                      </el-radio-group>
+                      <div class="hint" style="margin-top:6px">
+                        <b>填充裁剪</b>：图片填满屏幕，按比例裁掉两端（最常见）<br>
+                        <b>完整显示</b>：图片完整可见，左右/上下会有留白<br>
+                        <b>拉伸铺满</b>：拉伸到铺满屏幕，可能变形<br>
+                        <b>顶部对齐</b>：宽度铺满，顶部对齐，下方裁切（适合横版广告）
+                      </div>
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">页面头部</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="标题">
+                      <el-input v-model="h5Form.header_title" maxlength="64" show-word-limit />
+                    </el-form-item>
+                    <el-form-item label="副标题">
+                      <el-input v-model="h5Form.header_subtitle" maxlength="128" show-word-limit />
+                    </el-form-item>
+                    <el-form-item label="文字颜色">
+                      <el-color-picker v-model="h5Form.header_font_color" show-alpha />
+                    </el-form-item>
+                    <el-form-item label="字号">
+                      <el-input-number v-model="h5Form.header_font_size" :min="12" :max="48" :step="2" size="small" />
+                      <span class="hint">px</span>
+                    </el-form-item>
+<el-form-item label="标题位置">
+                      <div class="pos-control">
+                        <div class="pos-row">
+                          <span class="pos-label">X: {{ h5Form.header_position.x }}%</span>
+                          <el-button-group>
+                            <el-button size="small" :icon="ArrowLeft" @click="movePos('header_position', 'x', -5)" />
+                            <el-button size="small" :icon="ArrowRight" @click="movePos('header_position', 'x', 5)" />
+                          </el-button-group>
+                        </div>
+                        <div class="pos-row">
+                          <span class="pos-label">Y: {{ h5Form.header_position.y }}%</span>
+                          <el-button-group>
+                            <el-button size="small" :icon="ArrowUp" @click="movePos('header_position', 'y', -5)" />
+                            <el-button size="small" :icon="ArrowDown" @click="movePos('header_position', 'y', 5)" />
+                          </el-button-group>
+                        </div>
+                        <el-button size="small" plain @click="resetPos('header_position', 50, 25)">重置默认</el-button>
+                      </div>
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">跳转按钮</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="按钮文字">
+                      <el-input v-model="h5Form.page1_button_text" maxlength="32" show-word-limit placeholder="下一步" />
+                      <span class="hint" style="margin-left:8px">点击后跳转到 Page 2（表单页）</span>
+                    </el-form-item>
+                    <el-form-item label="背景色">
+                      <el-color-picker v-model="h5Form.page1_button_bg_color" show-alpha />
+                    </el-form-item>
+                    <el-form-item label="文字颜色">
+                      <el-color-picker v-model="h5Form.page1_button_text_color" show-alpha />
+                    </el-form-item>
+                    <el-form-item label="字号">
+                      <el-input-number v-model="h5Form.page1_button_font_size" :min="12" :max="36" :step="2" size="small" />
+                      <span class="hint">px</span>
+                    </el-form-item>
+                    <el-form-item label="按钮位置">
+                      <div class="pos-control">
+                        <div class="pos-row">
+                          <span class="pos-label">X: {{ h5Form.button_position.x }}%</span>
+                          <el-button-group>
+                            <el-button size="small" :icon="ArrowLeft" @click="movePos('button_position', 'x', -5)" />
+                            <el-button size="small" :icon="ArrowRight" @click="movePos('button_position', 'x', 5)" />
+                          </el-button-group>
+                        </div>
+                        <div class="pos-row">
+                          <span class="pos-label">Y: {{ h5Form.button_position.y }}%</span>
+                          <el-button-group>
+                            <el-button size="small" :icon="ArrowUp" @click="movePos('button_position', 'y', -5)" />
+                            <el-button size="small" :icon="ArrowDown" @click="movePos('button_position', 'y', 5)" />
+                          </el-button-group>
+                        </div>
+                        <el-button size="small" plain @click="resetPos('button_position', 50, 75)">重置默认</el-button>
+                      </div>
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+
+                <el-card shadow="never" class="cfg-card">
+                  <template #header>
+                    <span class="card-title">内容区块</span>
+                    <span class="hint">共 {{ h5Form.blocks.length }} 个</span>
+                    <div class="hdr-spacer" />
+                    <el-dropdown @command="addBlock">
+                      <el-button type="primary" size="small" :icon="Plus">添加区块</el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="image">图片</el-dropdown-item>
+                          <el-dropdown-item command="video">视频</el-dropdown-item>
+                          <el-dropdown-item command="text">普通文本</el-dropdown-item>
+                          <el-dropdown-item command="rich_text">富文本(HTML)</el-dropdown-item>
+                          <el-dropdown-item command="divider">分割线</el-dropdown-item>
+                          <el-dropdown-item command="countdown">倒计时</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </template>
+                  <el-empty v-if="!h5Form.blocks.length" description="暂无区块，点右上角添加" :image-size="60" />
+                  <div v-else class="item-list">
+                    <div v-for="(b, i) in h5Form.blocks" :key="b.id" class="item-row" draggable="true" :class="{ 'is-drag-over': dragOverIndex === 'hb' + i }" @dragstart="dragFromIndex = i" @dragover.prevent="dragOverIndex = 'hb' + i" @dragleave="dragOverIndex = ''" @drop="moveTo(h5Form.blocks, dragFromIndex, i); dragOverIndex = ''" @dragend="dragOverIndex = ''">
+                      <span class="drag-handle" title="拖拽排序">⠿</span>
+                      <div class="item-info">
+                        <el-tag size="small">{{ blockLabel(b.type) }}</el-tag>
+                        <span class="item-summary">{{ blockSummary(b) }}</span>
+                      </div>
+                      <div class="item-actions">
+                        <el-button :icon="ArrowUp" :disabled="i === 0" @click="moveBlock(i, -1)" circle size="small" />
+                        <el-button :icon="ArrowDown" :disabled="i === h5Form.blocks.length - 1" @click="moveBlock(i, 1)" circle size="small" />
+                        <el-button :icon="Edit" @click="editBlock(i)" circle size="small" />
+                        <el-button :icon="Delete" type="danger" plain @click="removeBlock(i)" circle size="small" />
+                      </div>
+                    </div>
+                  </div>
+                </el-card>
+              </el-tab-pane>
+
+              <!-- Page 2：表单 -->
+              <el-tab-pane label="Page 2 表单" name="page2">
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">页面背景</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="类型">
+                      <el-select v-model="h5Form.page2_background.type">
+                        <el-option label="纯色" value="color" />
+                        <el-option label="图片" value="image" />
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item v-if="h5Form.page2_background.type === 'color'" label="颜色值">
+                      <el-input v-model="h5Form.page2_background.value" placeholder="#0a0a0a" />
+                      <el-color-picker v-model="h5Form.page2_background.value" size="small" style="margin-left:8px" />
+                    </el-form-item>
+                    <el-form-item v-else label="图片">
+                      <el-upload :show-file-list="false" :http-request="(opt) => onUploadBlockImage(opt, h5Form.page2_background, 'value')" accept="image/*">
+                        <el-button :icon="Picture">上传背景图</el-button>
+                      </el-upload>
+                      <el-button v-if="h5Form.page2_background.value" :icon="Delete" type="danger" plain size="small" style="margin-left:8px" @click="h5Form.page2_background = { type: 'color', value: '#0a0a0a', fit: 'cover' }">删除</el-button>
+                      <el-image v-if="h5Form.page2_background.value" :src="h5Form.page2_background.value" fit="contain" style="width:120px;height:80px;border-radius:6px;margin-left:12px;background:#000" />
+                    </el-form-item>
+                    <el-form-item v-if="h5Form.page2_background.type === 'image' && h5Form.page2_background.value" label="图片适应">
+                      <el-radio-group v-model="h5Form.page2_background.fit">
+                        <el-radio-button value="cover">填充裁剪</el-radio-button>
+                        <el-radio-button value="contain">完整显示</el-radio-button>
+                        <el-radio-button value="fill">拉伸铺满</el-radio-button>
+                        <el-radio-button value="top">顶部对齐</el-radio-button>
+                      </el-radio-group>
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+                <el-card shadow="never" class="cfg-card">
+                  <template #header>
+                    <span class="card-title">表单字段</span>
+                    <span class="hint">共 {{ h5Form.form_fields.length }} 个</span>
+                    <div class="hdr-spacer" />
+                    <el-dropdown @command="addField">
+                      <el-button type="primary" size="small" :icon="Plus">添加字段</el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="text">文本</el-dropdown-item>
+                          <el-dropdown-item command="tel">手机号</el-dropdown-item>
+                          <el-dropdown-item command="radio">单选</el-dropdown-item>
+                          <el-dropdown-item command="select">下拉</el-dropdown-item>
+                          <el-dropdown-item command="checkbox">勾选</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </template>
+                  <el-empty v-if="!h5Form.form_fields.length" description="暂无字段" :image-size="60" />
+                  <div v-else class="item-list">
+                    <div v-for="(f, i) in h5Form.form_fields" :key="f.key" class="item-row" draggable="true" :class="{ 'is-drag-over': dragOverIndex === 'hf' + i }" @dragstart="dragFromIndex = i" @dragover.prevent="dragOverIndex = 'hf' + i" @dragleave="dragOverIndex = ''" @drop="moveTo(h5Form.form_fields, dragFromIndex, i); dragOverIndex = ''" @dragend="dragOverIndex = ''">
+                      <el-tag size="small" :type="f.required ? 'danger' : 'info'">{{ f.label || f.key }}</el-tag>
+                      <span class="item-summary">{{ fieldLabel(f.type) }}</span>
+                      <div class="item-actions">
+                        <el-button-group size="small">
+                          <el-button :icon="ArrowUp" :disabled="i === 0" @click="moveField(i, -1)" />
+                          <el-button :icon="ArrowDown" :disabled="i === h5Form.form_fields.length - 1" @click="moveField(i, 1)" />
+                          <el-button :icon="Edit" @click="editField(i)" />
+                          <el-button :icon="Delete" type="danger" plain @click="removeField(i)" />
+                        </el-button-group>
+                      </div>
+                    </div>
+                  </div>
+                  <el-form label-width="80px" label-position="left" style="margin-top:14px">
+                    <el-form-item label="频控">
+                      <el-select v-model="h5Form.rate_limit" style="width:100%">
+                        <el-option label="无限制" value="none" />
+                        <el-option label="每设备每天 1 次" value="per_device_day" />
+                        <el-option label="每手机号每天 1 次" value="per_phone_day" />
+                        <el-option label="每微信用户每天 1 次" value="per_openid_day" />
+                      </el-select>
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">隐私协议</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="启用">
+                      <el-switch v-model="h5Form.privacy.enabled" />
+                    </el-form-item>
+                    <el-form-item v-if="h5Form.privacy.enabled !== false" label="文案">
+                      <el-input v-model="h5Form.privacy.text" placeholder="我已阅读并同意《客户隐私协议》" />
+                    </el-form-item>
+                    <el-form-item v-if="h5Form.privacy.enabled !== false" label="协议链接">
+                      <el-input v-model="h5Form.privacy.url" placeholder="https://...（可选）" />
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">提交按钮</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="按钮文案">
+                      <el-input v-model="h5Form.submit_button.text" placeholder="立即领取" />
+                    </el-form-item>
+                    <el-form-item label="按钮颜色">
+                      <el-color-picker v-model="h5Form.submit_button.color" color-format="hex" />
+                      <span class="hint" style="margin-left:8px">{{ h5Form.submit_button.color || '跟随品牌色' }}</span>
+                      <el-button v-if="h5Form.submit_button.color" link type="primary" size="small" @click="h5Form.submit_button.color = ''">使用品牌色</el-button>
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">跳转按钮</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="按钮文字">
+                      <el-input v-model="h5Form.page2_button_text" maxlength="32" show-word-limit placeholder="立即领取" />
+                      <span class="hint" style="margin-left:8px">点击后提交表单并跳转到 Page 3（结果页）</span>
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+              </el-tab-pane>
+
+              <!-- Page 3：结果 -->
+              <el-tab-pane label="Page 3 结果" name="page3">
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">页面背景</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="类型">
+                      <el-select v-model="h5Form.page3_background.type">
+                        <el-option label="纯色" value="color" />
+                        <el-option label="图片" value="image" />
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item v-if="h5Form.page3_background.type === 'color'" label="颜色值">
+                      <el-input v-model="h5Form.page3_background.value" placeholder="#0a0a0a" />
+                      <el-color-picker v-model="h5Form.page3_background.value" size="small" style="margin-left:8px" />
+                    </el-form-item>
+                    <el-form-item v-else label="图片">
+                      <el-upload :show-file-list="false" :http-request="(opt) => onUploadBlockImage(opt, h5Form.page3_background, 'value')" accept="image/*">
+                        <el-button :icon="Picture">上传背景图</el-button>
+                      </el-upload>
+                      <el-button v-if="h5Form.page3_background.value" :icon="Delete" type="danger" plain size="small" style="margin-left:8px" @click="h5Form.page3_background = { type: 'color', value: '#0a0a0a' }">删除</el-button>
+                      <el-image v-if="h5Form.page3_background.value" :src="h5Form.page3_background.value" fit="cover" style="width:120px;height:80px;border-radius:6px;margin-left:12px" />
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+                <el-card shadow="never" class="cfg-card">
+                  <template #header><span class="card-title">成功视图</span></template>
+                  <el-form label-width="80px" label-position="left">
+                    <el-form-item label="弹窗标题">
+                      <el-input v-model="h5Form.success_view.title" placeholder="您今日已领取过" />
+                    </el-form-item>
+                    <el-form-item label="副标题">
+                      <el-input v-model="h5Form.success_view.subtitle" placeholder="每个设备每天只能领取一次" />
+                    </el-form-item>
+                    <el-form-item label="码标签">
+                      <el-input v-model="h5Form.success_view.code_label" placeholder="您的兑换码" />
+                    </el-form-item>
+                    <el-form-item label="底部提示">
+                      <el-input v-model="h5Form.success_view.footer_tip" placeholder="请在终端页面输入此码进行核销" />
+                    </el-form-item>
+                  </el-form>
+                </el-card>
+              </el-tab-pane>
+            </el-tabs>
+
+            <div class="footer-bar">
+              <el-button :icon="RefreshLeft" @click="resetH5">{{ variantEditing ? '恢复变体原值' : '重置' }}</el-button>
+              <el-button type="primary" :icon="Check" :loading="saving" @click="saveH5">
+                {{ variantEditing ? `保存变体 ${variantEditing.key}` : '保存草稿' }}
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 右：iframe 预览 -->
+          <div class="h5-preview-col">
+            <div class="preview-frame-wrap" :class="{ 'is-fullscreen': h5PreviewFull }">
+              <div class="preview-toolbar">
+                <span class="card-title">预览</span>
+                <span class="hint">{{ h5Status === 'published' ? `线上 v${h5?.current_version}` : '草稿' }}</span>
+                <div class="hdr-spacer" />
+                <el-radio-group v-model="h5PreviewMode" size="small">
+                  <el-radio-button value="phone">手机框</el-radio-button>
+                  <el-radio-button value="full">大尺寸</el-radio-button>
+                </el-radio-group>
+                <el-button size="small" :icon="FullScreen" @click="h5PreviewFull = !h5PreviewFull" :title="h5PreviewFull ? '退出全屏' : '全屏'">
+                  {{ h5PreviewFull ? '退出' : '全屏' }}
+                </el-button>
+                <el-button size="small" :icon="Refresh" @click="refreshPreview">刷新</el-button>
+                <el-button size="small" :icon="View" @click="openPreview">新窗口</el-button>
+              </div>
+              <div :class="['preview-stage-h5', 'mode-' + h5PreviewMode]">
+                <div :class="['phone-frame', 'mode-' + h5PreviewMode]">
+                  <iframe ref="previewIframe" :src="previewUrl" class="phone-iframe" />
+                </div>
+              </div>
+              <div class="preview-hint" v-if="!h5PreviewFull">
+                <el-icon><InfoFilled /></el-icon>
+                保存草稿后点刷新可预览。线上仍是已发布版本。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 区块编辑器 dialog -->
+        <el-dialog v-model="blockDlgVisible" :title="`编辑区块：${blockLabel(editingBlock.type)}`" width="540px" destroy-on-close>
+          <el-form label-width="100px" label-position="left">
+            <!-- 页面头部 -->
+            <template v-if="editingBlock.type === 'header'">
+              <el-form-item label="标题">
+                <el-input v-model="editingBlock.props.title" maxlength="64" show-word-limit />
+              </el-form-item>
+              <el-form-item label="副标题">
+                <el-input v-model="editingBlock.props.subtitle" maxlength="128" show-word-limit />
+              </el-form-item>
+            </template>
+            <!-- 图片 -->
+            <template v-if="editingBlock.type === 'image'">
+              <el-form-item label="图片">
+                <el-upload :show-file-list="false" :http-request="(opt) => onUploadBlockImage(opt, editingBlock.props)" accept="image/*">
+                  <el-button :icon="Picture">上传图片</el-button>
+                </el-upload>
+                <el-image v-if="editingBlock.props.url" :src="editingBlock.props.url" fit="cover" style="width:120px;height:80px;border-radius:6px;margin-left:12px" />
+              </el-form-item>
+              <el-form-item label="替代文字">
+                <el-input v-model="editingBlock.props.alt" />
+              </el-form-item>
+              <el-form-item label="对齐">
+                <el-select v-model="editingBlock.props.align">
+                  <el-option label="居中" value="center" />
+                  <el-option label="左对齐" value="left" />
+                  <el-option label="右对齐" value="right" />
+                </el-select>
+              </el-form-item>
+            </template>
+            <!-- 视频 -->
+            <template v-if="editingBlock.type === 'video'">
+              <el-form-item label="视频 URL">
+                <el-input v-model="editingBlock.props.url" placeholder=".mp4 / .webm" />
+              </el-form-item>
+              <el-form-item label="自动播放">
+                <el-switch v-model="editingBlock.props.autoplay" />
+              </el-form-item>
+              <el-form-item label="循环">
+                <el-switch v-model="editingBlock.props.loop" />
+              </el-form-item>
+              <el-form-item label="对齐">
+                <el-select v-model="editingBlock.props.align">
+                  <el-option label="居中" value="center" />
+                  <el-option label="左对齐" value="left" />
+                  <el-option label="右对齐" value="right" />
+                </el-select>
+              </el-form-item>
+            </template>
+            <!-- 文本 -->
+            <template v-if="editingBlock.type === 'text'">
+              <el-form-item label="内容">
+                <el-input v-model="editingBlock.props.content" type="textarea" :rows="4" />
+              </el-form-item>
+              <el-form-item label="字号">
+                <el-input v-model="editingBlock.props.font_size" placeholder="如 15px" />
+              </el-form-item>
+              <el-form-item label="颜色">
+                <el-input v-model="editingBlock.props.color" placeholder="#ffffff" />
+                <el-color-picker v-model="editingBlock.props.color" size="small" style="margin-left:8px" />
+              </el-form-item>
+              <el-form-item label="对齐">
+                <el-select v-model="editingBlock.props.align">
+                  <el-option label="居中" value="center" />
+                  <el-option label="左对齐" value="left" />
+                  <el-option label="右对齐" value="right" />
+                </el-select>
+              </el-form-item>
+            </template>
+            <!-- 富文本 -->
+            <template v-if="editingBlock.type === 'rich_text'">
+              <el-form-item label="HTML">
+                <el-input v-model="editingBlock.props.html" type="textarea" :rows="6" placeholder="<p>...</p>" />
+              </el-form-item>
+              <el-form-item label="对齐">
+                <el-select v-model="editingBlock.props.align">
+                  <el-option label="居中" value="center" />
+                  <el-option label="左对齐" value="left" />
+                  <el-option label="右对齐" value="right" />
+                </el-select>
+              </el-form-item>
+            </template>
+            <!-- 倒计时 -->
+            <template v-if="editingBlock.type === 'countdown'">
+              <el-form-item label="文案">
+                <el-input v-model="editingBlock.props.label" placeholder="距活动结束还有 ..." />
+              </el-form-item>
+              <el-form-item label="截止时间">
+                <el-date-picker v-model="editingBlock.props.deadline" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width:100%" />
+              </el-form-item>
+            </template>
+            <!-- 表单 -->
+            <template v-if="editingBlock.type === 'form'">
+              <el-form-item label="按钮文案">
+                <el-input v-model="editingBlock.props.submit_button.text" placeholder="立即领取" />
+              </el-form-item>
+              <el-form-item label="按钮颜色">
+                <el-color-picker v-model="editingBlock.props.submit_button.color" color-format="hex" />
+                <span class="hint" style="margin-left:8px">{{ editingBlock.props.submit_button.color || '跟随品牌色' }}</span>
+                <el-button v-if="editingBlock.props.submit_button.color" link type="primary" size="small" @click="editingBlock.props.submit_button.color = ''">使用品牌色</el-button>
+              </el-form-item>
+              <el-form-item label="频控">
+                <el-select v-model="editingBlock.props.rate_limit" style="width:100%">
+                  <el-option label="无限制" value="none" />
+                  <el-option label="每设备每天 1 次" value="per_device_day" />
+                  <el-option label="每手机号每天 1 次" value="per_phone_day" />
+                  <el-option label="每微信用户每天 1 次" value="per_openid_day" />
+                </el-select>
+              </el-form-item>
+              <el-divider>表单字段</el-divider>
+              <div v-if="!editingBlock.props.fields?.length" class="hint" style="margin-bottom:8px">暂无字段，点击下方按钮添加</div>
+              <div v-for="(f, fi) in editingBlock.props.fields" :key="f.key + fi" class="opt-row" style="margin-bottom:6px">
+                <el-tag size="small" :type="f.required ? 'danger' : 'info'" style="flex-shrink:0">{{ f.label || f.key }}</el-tag>
+                <span class="hint" style="flex:1;overflow:hidden;text-overflow:ellipsis">{{ fieldLabel(f.type) }}</span>
+                <el-button :icon="Edit" size="small" @click="editFormField(fi)" />
+                <el-button :icon="Delete" size="small" type="danger" plain @click="editingBlock.props.fields.splice(fi,1)" />
+              </div>
+              <el-button :icon="Plus" size="small" plain @click="addFormField">添加字段</el-button>
+            </template>
+            <!-- 隐私声明 -->
+            <template v-if="editingBlock.type === 'privacy'">
+              <el-form-item label="启用">
+                <el-switch v-model="editingBlock.props.enabled" />
+              </el-form-item>
+              <el-form-item v-if="editingBlock.props.enabled !== false" label="文案">
+                <el-input v-model="editingBlock.props.text" placeholder="我已阅读并同意《客户隐私协议》" />
+              </el-form-item>
+              <el-form-item v-if="editingBlock.props.enabled !== false" label="协议链接">
+                <el-input v-model="editingBlock.props.url" placeholder="https://...（可选）" />
+              </el-form-item>
+            </template>
+            <!-- 成功视图 -->
+            <template v-if="editingBlock.type === 'success'">
+              <el-form-item label="弹窗标题">
+                <el-input v-model="editingBlock.props.title" placeholder="您今日已领取过" />
+              </el-form-item>
+              <el-form-item label="副标题">
+                <el-input v-model="editingBlock.props.subtitle" placeholder="每个设备每天只能领取一次" />
+              </el-form-item>
+              <el-form-item label="码标签">
+                <el-input v-model="editingBlock.props.code_label" placeholder="您的兑换码" />
+              </el-form-item>
+              <el-form-item label="底部提示">
+                <el-input v-model="editingBlock.props.footer_tip" placeholder="请在终端页面输入此码进行核销" />
+              </el-form-item>
+            </template>
+            <template v-if="!['header','image','video','text','rich_text','countdown','form','privacy','success','divider'].includes(editingBlock.type)">
+              <el-form-item><span class="hint">无可配置项</span></el-form-item>
+            </template>
+          </el-form>
+          <template #footer>
+            <el-button @click="blockDlgVisible = false">取消</el-button>
+            <el-button type="primary" @click="commitBlock">确定</el-button>
+          </template>
+        </el-dialog>
+
+        <!-- 表单字段编辑器 dialog（form 区块的子编辑） -->
+        <el-dialog v-model="fieldDlgVisible" :title="`编辑字段：${fieldLabel(editingField.type)}`" width="560px" destroy-on-close>
+          <el-form label-width="100px" label-position="left">
+            <el-form-item label="字段 key" required>
+              <el-input v-model="editingField.key" placeholder="如 name / phone" />
+            </el-form-item>
+            <el-form-item label="标签">
+              <el-input v-model="editingField.label" placeholder="您的称呼" />
+            </el-form-item>
+            <el-form-item label="必填">
+              <el-switch v-model="editingField.required" />
+            </el-form-item>
+            <el-form-item v-if="['text','tel','select','checkbox'].includes(editingField.type)" label="占位符">
+              <el-input v-model="editingField.placeholder" />
+            </el-form-item>
+            <el-form-item v-if="['text','tel'].includes(editingField.type)" label="校验正则">
+              <el-input v-model="editingField.validate_regex" placeholder="如 ^1[3-9]\\d{9}$" />
+            </el-form-item>
+            <el-form-item v-if="['text','tel'].includes(editingField.type)" label="错误提示">
+              <el-input v-model="editingField.error_msg" placeholder="请填写..." />
+            </el-form-item>
+
+            <template v-if="['radio','select'].includes(editingField.type)">
+              <el-divider>选项</el-divider>
+              <div v-for="(opt, i) in editingField.options" :key="i" class="opt-row">
+                <el-input v-model="opt.value" placeholder="value" style="width:120px" />
+                <el-input v-model="opt.label" placeholder="显示文字" />
+                <el-input v-if="editingField.type === 'radio'" v-model="opt.sublabel" placeholder="副标题（可选）" />
+                <el-input v-if="editingField.type === 'radio'" v-model="opt.icon" placeholder="图标 emoji" style="width:80px" />
+                <el-button :icon="Delete" type="danger" plain size="small" @click="editingField.options.splice(i,1)" />
+              </div>
+              <el-button :icon="Plus" size="small" plain @click="editingField.options.push({value:'',label:'',sublabel:'',icon:''})">
+                添加选项
+              </el-button>
+            </template>
+          </el-form>
+          <template #footer>
+            <el-button @click="fieldDlgVisible = false">取消</el-button>
+            <el-button type="primary" @click="commitField">确定</el-button>
+          </template>
+        </el-dialog>
+      </el-tab-pane>
+
+      <!-- ===== LED 大屏（精简版）===== -->
+      <el-tab-pane label="LED 大屏" name="led">
+        <div class="led-layout">
+          <!-- 左：仅两张背景图 -->
+          <div class="led-edit-col">
+            <el-alert
+              type="info" :closable="false" show-icon
+              title="LED 大屏装修说明"
+              description="Page 1（首页）：上传一张包含二维码的整图；点击进入下一页的按钮由设备端 Qt 实现。Page 2（兑换页）：上传一张背景图；输入框由设备端 Qt 实现。"
+              style="margin-bottom: 16px"
+            />
+
+            <el-card shadow="never" class="cfg-card">
+              <template #header>
+                <span class="card-title">Page 1 背景（首页·带二维码）</span>
+              </template>
+              <el-upload
+                :show-file-list="false"
+                :http-request="(opt) => onUploadBlockImage(opt, ledForm.page1_background, 'value')"
+                accept="image/*"
+              >
+                <el-button :icon="Picture" type="primary">上传 Page 1 背景图</el-button>
+              </el-upload>
+              <el-button
+                v-if="ledForm.page1_background.value"
+                :icon="Delete" type="danger" plain size="small" style="margin-left:8px"
+                @click="ledForm.page1_background = { type: 'color', value: '#0a0a0a', fit: 'cover' }; saveLed_Silent()"
+              >删除</el-button>
+              <div v-if="ledForm.page1_background.type === 'image' && ledForm.page1_background.value" style="margin-top:16px">
+                <el-image
+                  :src="ledForm.page1_background.value"
+                  fit="contain"
+                  style="width:100%; max-height: 360px; background:#000; border-radius:8px"
+                />
+                <div style="margin-top:8px">
+                  <span style="font-size:13px; color: var(--el-text-color-secondary); margin-right:8px">图片适应：</span>
+                  <el-radio-group v-model="ledForm.page1_background.fit" size="small" @change="saveLed_Silent">
+                    <el-radio-button value="cover">填充裁剪</el-radio-button>
+                    <el-radio-button value="contain">完整显示</el-radio-button>
+                    <el-radio-button value="fill">拉伸铺满</el-radio-button>
+                  </el-radio-group>
+                </div>
+              </div>
+              <el-empty v-else description="未上传 Page 1 背景图" :image-size="60" style="margin-top:12px" />
+            </el-card>
+
+            <el-card shadow="never" class="cfg-card">
+              <template #header>
+                <span class="card-title">Page 2 背景（兑换页·输入框由 Qt 渲染）</span>
+              </template>
+              <el-upload
+                :show-file-list="false"
+                :http-request="(opt) => onUploadBlockImage(opt, ledForm.page2_background, 'value')"
+                accept="image/*"
+              >
+                <el-button :icon="Picture" type="primary">上传 Page 2 背景图</el-button>
+              </el-upload>
+              <el-button
+                v-if="ledForm.page2_background.value"
+                :icon="Delete" type="danger" plain size="small" style="margin-left:8px"
+                @click="ledForm.page2_background = { type: 'color', value: '#0a0a0a', fit: 'cover' }; saveLed_Silent()"
+              >删除</el-button>
+              <div v-if="ledForm.page2_background.type === 'image' && ledForm.page2_background.value" style="margin-top:16px">
+                <el-image
+                  :src="ledForm.page2_background.value"
+                  fit="contain"
+                  style="width:100%; max-height: 360px; background:#000; border-radius:8px"
+                />
+                <div style="margin-top:8px">
+                  <span style="font-size:13px; color: var(--el-text-color-secondary); margin-right:8px">图片适应：</span>
+                  <el-radio-group v-model="ledForm.page2_background.fit" size="small" @change="saveLed_Silent">
+                    <el-radio-button value="cover">填充裁剪</el-radio-button>
+                    <el-radio-button value="contain">完整显示</el-radio-button>
+                    <el-radio-button value="fill">拉伸铺满</el-radio-button>
+                  </el-radio-group>
+                </div>
+              </div>
+              <el-empty v-else description="未上传 Page 2 背景图" :image-size="60" style="margin-top:12px" />
+            </el-card>
+
+            <div class="footer-bar">
+              <el-button :icon="RefreshLeft" @click="resetLed">重置</el-button>
+              <el-button type="primary" :icon="Check" :loading="saving" @click="saveLed">保存草稿</el-button>
+            </div>
+          </div>
+
+          <!-- 右：竖屏 iframe 预览 -->
+          <div class="led-preview-col">
+            <div class="preview-frame-wrap">
+              <div class="preview-toolbar">
+                <span class="card-title">大屏预览</span>
+                <span class="hint">{{ ledStatus === 'published' ? `线上 v${led?.current_version}` : '草稿' }}</span>
+                <div class="hdr-spacer" />
+                <el-radio-group v-model="ledPreviewPage" size="small" @change="refreshLedPreview">
+                  <el-radio-button value="1">Page 1</el-radio-button>
+                  <el-radio-button value="2">Page 2</el-radio-button>
+                </el-radio-group>
+                <el-select v-model="previewMachineId" size="small" placeholder="选择设备" style="width:160px; margin-left:8px">
+                  <el-option
+                    v-for="m in projectMachines" :key="m.id"
+                    :label="m.machine_id" :value="m.machine_id" />
+                </el-select>
+                <el-button size="small" :icon="Refresh" @click="refreshLedPreview" />
+              </div>
+              <div class="led-frame" v-if="previewMachineId">
+                <iframe ref="ledPreviewIframe" :src="ledPreviewUrl" class="led-iframe" />
+              </div>
+              <el-empty v-else description="先选设备查看预览" :image-size="60" />
+              <div class="preview-hint">
+                <el-icon><InfoFilled /></el-icon>
+                竖屏 9:16 预览；设备端 Qt 会在背景上叠加点击/输入控件
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- ===== A/B 实验（Phase 2.3） ===== -->
+      <el-tab-pane label="A/B 实验" name="experiment">
+        <!-- 无实验：CTA 创建 -->
+        <el-empty v-if="!experiment" description="尚未创建 A/B 实验" :image-size="80">
+          <el-button type="primary" :icon="Plus" @click="openCreateExpDialog">创建实验</el-button>
+          <div style="margin-top:10px; color: var(--el-text-color-secondary); font-size: 13px;">
+            创建后会以当前 H5 配置为「对照组 A」，你再编辑变体 B 进行对比
+          </div>
+        </el-empty>
+
+        <!-- 有实验：状态卡 + 变体 + 统计 -->
+        <template v-else>
+          <el-card shadow="never" class="cfg-card">
+            <template #header>
+              <span class="card-title">{{ experiment.name }}</span>
+              <el-tag :type="expStatusTag(experiment.status)" size="small" style="margin-left:8px">
+                {{ expStatusLabel(experiment.status) }}
+              </el-tag>
+              <el-tag v-if="experiment.winner" type="success" effect="dark" size="small" style="margin-left:6px">
+                胜出 {{ experiment.winner }}
+              </el-tag>
+              <div class="hdr-spacer" />
+              <!-- 状态机按钮 -->
+              <template v-if="experiment.status === 'draft'">
+                <el-button type="success" :icon="VideoPlay" :loading="expActing" @click="expTransition('running')">
+                  启动实验
+                </el-button>
+              </template>
+              <template v-else-if="experiment.status === 'running'">
+                <el-button :icon="VideoPause" :loading="expActing" @click="expTransition('stopped')">暂停</el-button>
+                <el-button type="primary" :icon="CircleCheck" :loading="expActing" @click="openConcludeDialog">
+                  结案
+                </el-button>
+              </template>
+              <template v-else-if="experiment.status === 'stopped'">
+                <el-button type="success" :icon="VideoPlay" :loading="expActing" @click="expTransition('running')">继续</el-button>
+                <el-button type="primary" :icon="CircleCheck" :loading="expActing" @click="openConcludeDialog">结案</el-button>
+              </template>
+              <el-button :icon="Download" @click="doExportExperiment">导出 CSV</el-button>
+              <el-button v-if="experiment.status !== 'running'" :icon="Delete" type="danger" plain :loading="expActing" @click="deleteExp">
+                删除
+              </el-button>
+            </template>
+
+            <el-form label-width="100px" label-position="left">
+              <el-form-item v-if="experiment.hypothesis" label="假设">
+                <span style="color: var(--el-text-color-secondary)">{{ experiment.hypothesis }}</span>
+              </el-form-item>
+              <el-form-item label="流量分配">
+                <span v-for="v in experiment.variants" :key="v.key" class="share-tag">
+                  {{ v.key }}: <b>{{ v.traffic_share }}%</b>
+                </span>
+              </el-form-item>
+              <el-form-item v-if="experiment.started_at" label="启动时间">{{ experiment.started_at }}</el-form-item>
+              <el-form-item v-if="experiment.stopped_at" label="结束时间">{{ experiment.stopped_at }}</el-form-item>
+              <el-form-item v-if="experiment.conclusion_note" label="结论">{{ experiment.conclusion_note }}</el-form-item>
+            </el-form>
+          </el-card>
+
+          <!-- 两个变体卡片 -->
+          <div class="variants-grid">
+            <el-card v-for="v in experiment.variants" :key="v.id" shadow="never" class="cfg-card variant-card">
+              <template #header>
+                <span class="card-title">
+                  变体 {{ v.key }}
+                  <el-tag size="small" :type="v.key === 'A' ? 'info' : 'warning'" style="margin-left:6px">
+                    {{ v.key === 'A' ? '对照组' : '实验组' }}
+                  </el-tag>
+                </span>
+                <div class="hdr-spacer" />
+                <el-button
+                  v-if="experiment.status !== 'concluded'"
+                  size="small" :icon="Edit"
+                  :type="variantEditing?.id === v.id ? 'primary' : ''"
+                  @click="enterVariantEditing(v)">
+                  {{ variantEditing?.id === v.id ? '编辑中…' : '在 H5 tab 中编辑' }}
+                </el-button>
+              </template>
+              <el-form label-width="80px" label-position="left">
+                <el-form-item label="名称">{{ v.name }}</el-form-item>
+                <el-form-item label="说明" v-if="v.note">{{ v.note }}</el-form-item>
+                <el-form-item label="标题">{{ v.h5_snapshot.header_title || '(默认)' }}</el-form-item>
+                <el-form-item label="按钮文案">{{ v.h5_snapshot.submit_button?.text || '立即领取' }}</el-form-item>
+                <el-form-item label="按钮颜色">
+                  <span v-if="v.h5_snapshot.submit_button?.color"
+                        :style="{ display:'inline-block', width:'24px', height:'24px', borderRadius:'4px', backgroundColor: v.h5_snapshot.submit_button.color, marginRight: '8px', verticalAlign: 'middle' }" />
+                  {{ v.h5_snapshot.submit_button?.color || '跟随主题' }}
+                </el-form-item>
+                <!-- 实时统计 -->
+                <template v-if="expStats">
+                  <el-divider>实时数据</el-divider>
+                  <el-form-item label="访问">
+                    <b>{{ variantStat(v.key).visits }}</b>
+                    <span class="hint" style="margin-left:8px">UV {{ variantStat(v.key).uv }}</span>
+                  </el-form-item>
+                  <el-form-item label="领码">
+                    {{ variantStat(v.key).claims }}
+                    <el-tag size="small" :type="leaderTag(v.key)" style="margin-left:6px">
+                      {{ variantStat(v.key).claim_rate }}%
+                    </el-tag>
+                  </el-form-item>
+                  <el-form-item label="核销">
+                    {{ variantStat(v.key).redeems }}
+                    <span class="hint" style="margin-left:8px">{{ variantStat(v.key).redeem_rate }}%</span>
+                  </el-form-item>
+                </template>
+              </el-form>
+            </el-card>
+          </div>
+
+          <!-- 显著性提示 -->
+          <el-alert
+            v-if="expStats?.significance"
+            :type="anySigConfident ? 'success' : 'info'"
+            :closable="false" show-icon
+            style="margin-top:14px">
+            <template #title>
+              当前领先方：<b>{{ expStats.significance.leader || '-' }}</b>
+              （对照组 {{ expStats.significance.control || 'A' }}）
+            </template>
+            <div style="margin-top:6px">
+              <div v-for="cmp in expStats.significance.comparisons" :key="cmp.variant" style="font-size:13px;">
+                <el-tag size="small" :type="cmp.confident ? 'success' : 'info'" effect="plain" style="margin-right:6px">
+                  {{ cmp.variant }} vs {{ cmp.vs }}
+                </el-tag>
+                z = {{ cmp.z_score ?? '—' }}
+                <span v-if="cmp.confident" style="color: var(--el-color-success); margin-left:4px">✓ 显著</span>
+                <span v-else style="color: var(--el-text-color-secondary); margin-left:4px">未达 95% 置信</span>
+              </div>
+              <div style="color: var(--el-text-color-secondary); font-size: 12px; margin-top:4px">
+                {{ expStats.significance.note }}
+              </div>
+            </div>
+          </el-alert>
+        </template>
+
+        <!-- 创建实验 dialog (支持 2-4 变体) -->
+        <el-dialog v-model="createExpDialog" title="创建 A/B 实验" width="560px">
+          <el-form label-width="100px" label-position="left">
+            <el-form-item label="实验名称">
+              <el-input v-model="newExp.name" placeholder="例：按钮颜色 A/B" maxlength="128" />
+            </el-form-item>
+            <el-form-item label="假设">
+              <el-input v-model="newExp.hypothesis" type="textarea" :rows="2"
+                placeholder="例：使用红色按钮可提升 H5 点击率" />
+            </el-form-item>
+            <el-form-item label="变体数">
+              <el-radio-group v-model="newExp.variant_count" @change="rebalanceShares">
+                <el-radio-button :value="2">2 (A/B)</el-radio-button>
+                <el-radio-button :value="3">3 (A/B/C)</el-radio-button>
+                <el-radio-button :value="4">4 (A/B/C/D)</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="流量分配">
+              <div class="shares-grid">
+                <div v-for="(k, i) in ['A','B','C','D'].slice(0, newExp.variant_count)" :key="k" class="share-cell">
+                  <div class="share-label">{{ k }}</div>
+                  <el-input-number
+                    v-model="newExp.traffic_shares[i]"
+                    :min="0" :max="100" :step="5"
+                    size="small"
+                    style="width:90px"
+                    controls-position="right" />
+                  <div class="share-pct">%</div>
+                </div>
+              </div>
+              <div class="hint" :style="{ color: shareSum === 100 ? 'var(--el-color-success)' : 'var(--el-color-danger)' }">
+                合计 {{ shareSum }}%（必须 = 100）
+              </div>
+              <el-button size="small" link type="primary" @click="rebalanceShares">均分</el-button>
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button @click="createExpDialog = false">取消</el-button>
+            <el-button type="primary" :loading="expActing" :disabled="shareSum !== 100" @click="doCreateExp">
+              创建
+            </el-button>
+          </template>
+        </el-dialog>
+
+
+        <!-- 结案 dialog -->
+        <el-dialog v-model="concludeDialog" title="结案实验" width="500px">
+          <el-alert type="warning" :closable="false" show-icon
+                    title="结案后该实验不可恢复，且会把胜出变体的 H5 快照覆盖到项目主表（草稿状态，待你审核后发布）" />
+          <el-form label-width="100px" label-position="left" style="margin-top:14px">
+            <el-form-item label="胜出变体">
+              <el-radio-group v-model="concludeForm.winner">
+                <el-radio v-for="v in (experiment?.variants || [])" :key="v.key" :value="v.key">
+                  {{ v.key }} {{ v.name }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="结论备注">
+              <el-input v-model="concludeForm.note" type="textarea" :rows="2"
+                placeholder="例：B 转化率明显更高，置信度足够" />
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button @click="concludeDialog = false">取消</el-button>
+            <el-button type="primary" :loading="expActing" @click="doConclude">确认结案</el-button>
+          </template>
+        </el-dialog>
+      </el-tab-pane>
+
+      <!-- ===== 数据看板（Phase 2.2） ===== -->
+      <el-tab-pane label="数据看板" name="stats">
+        <div class="stats-toolbar">
+          <el-radio-group v-model="statsDays" @change="loadFunnel" size="small">
+            <el-radio-button :value="7">近 7 天</el-radio-button>
+            <el-radio-button :value="14">近 14 天</el-radio-button>
+            <el-radio-button :value="30">近 30 天</el-radio-button>
+          </el-radio-group>
+          <div style="flex:1"></div>
+          <el-button size="small" :icon="Download" @click="doExportFunnel">导出 CSV</el-button>
+          <el-button size="small" :icon="Refresh" @click="loadFunnel">刷新</el-button>
+        </div>
+
+        <div v-loading="statsLoading">
+          <!-- KPI 卡片 -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">H5 访问</div>
+              <div class="kpi-value">{{ funnel?.totals.h5_visits ?? 0 }}</div>
+              <div class="kpi-sub">UV {{ funnel?.totals.uv_h5 ?? 0 }}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">LED 访问</div>
+              <div class="kpi-value">{{ funnel?.totals.led_visits ?? 0 }}</div>
+              <div class="kpi-sub">UV {{ funnel?.totals.uv_led ?? 0 }}</div>
+            </div>
+            <div class="kpi-card success">
+              <div class="kpi-label">领码</div>
+              <div class="kpi-value">{{ funnel?.totals.claims ?? 0 }}</div>
+              <div class="kpi-sub">访问→领码 {{ funnel?.conversion.h5_visit_to_claim ?? 0 }}%</div>
+            </div>
+            <div class="kpi-card warning">
+              <div class="kpi-label">核销</div>
+              <div class="kpi-value">{{ funnel?.totals.redeems ?? 0 }}</div>
+              <div class="kpi-sub">领码→核销 {{ funnel?.conversion.claim_to_redeem ?? 0 }}%</div>
+            </div>
+            <div class="kpi-card primary">
+              <div class="kpi-label">整体转化</div>
+              <div class="kpi-value">{{ funnel?.conversion.overall ?? 0 }}%</div>
+              <div class="kpi-sub">H5 访问 → 核销</div>
+            </div>
+          </div>
+
+          <!-- 趋势图 -->
+          <el-card shadow="never" class="cfg-card" style="margin-top:14px">
+            <template #header><span class="card-title">每日趋势</span></template>
+            <div ref="trendChartEl" style="width:100%; height:340px"></div>
+          </el-card>
+
+          <!-- 漏斗图 -->
+          <el-card shadow="never" class="cfg-card" style="margin-top:14px">
+            <template #header><span class="card-title">转化漏斗</span></template>
+            <div ref="funnelChartEl" style="width:100%; height:300px"></div>
+          </el-card>
+        </div>
+      </el-tab-pane>
+
+      <!-- ===== 发布历史 ===== -->
+      <el-tab-pane label="发布历史" name="versions">
+        <el-alert type="info" :closable="false" style="margin-bottom:10px">
+          每次发布 H5 / LED 都会生成一个不可变快照。可以随时回滚到任意历史版本。
+        </el-alert>
+        <el-table :data="versions" stripe size="small" empty-text="暂无发布记录">
+          <el-table-column prop="version" label="版本" width="80">
+            <template #default="{ row }">
+              <b>v{{ row.version }}</b>
+              <el-tag v-if="isCurrentVersion(row)" size="small" type="success" effect="dark" style="margin-left:6px">当前</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="page_type" label="类型" width="80">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.page_type === 'h5' ? 'primary' : row.page_type === 'led' ? 'warning' : 'info'">
+                {{ row.page_type === 'h5' ? 'H5' : row.page_type === 'theme' ? '主题' : 'LED' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="published_at" label="发布时间" width="180" />
+          <el-table-column prop="published_by_name" label="发布人" width="120" />
+          <el-table-column prop="note" label="发布说明" />
+          <el-table-column label="操作" width="180" align="right">
+            <template #default="{ row }">
+              <el-button
+                size="small" link type="primary"
+                :disabled="isCurrentVersion(row)"
+                @click="openRestoreDialog(row)">
+                <el-icon><RefreshLeft /></el-icon>
+                回滚到此版本
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 回滚确认 dialog -->
+        <el-dialog v-model="restoreDialog" :title="restoreTarget ? `回滚到 v${restoreTarget.version}` : '回滚'" width="520px">
+          <div v-if="restoreTarget">
+            <el-alert type="warning" :closable="false" show-icon
+                      :title="`将把 ${restoreTarget.page_type === 'led' ? 'LED 大屏' : 'H5 落地页'} 的内容覆盖为 v${restoreTarget.version} 的快照`"
+                      style="margin-bottom:14px"
+                      description="可选「仅恢复到草稿」（推荐，编辑器里能看到结果后再发布），或「立即发布」（生成一条新版本号 + 立即生效到线上）" />
+
+            <el-form label-width="120px" label-position="left">
+              <el-form-item label="包含主题">
+                <el-switch v-model="restoreOptions.include_theme" />
+                <span class="hint" style="margin-left:8px">关闭则只回滚 {{ restoreTarget.page_type === 'led' ? 'LED' : 'H5' }} 内容，不动主题色</span>
+              </el-form-item>
+              <el-form-item label="回滚后">
+                <el-radio-group v-model="restoreOptions.publish">
+                  <el-radio :value="false">仅恢复到草稿（推荐）</el-radio>
+                  <el-radio :value="true">立即发布到线上</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="发布说明">
+                <el-input :value="`回滚自 v${restoreTarget.version}`" disabled />
+              </el-form-item>
+            </el-form>
+          </div>
+          <template #footer>
+            <el-button @click="restoreDialog = false">取消</el-button>
+            <el-button type="primary" :loading="restoring" @click="doRestore">
+              {{ restoreOptions.publish ? '回滚并发布' : '回滚到草稿' }}
+            </el-button>
+          </template>
+        </el-dialog>
+      </el-tab-pane>
+    </el-tabs>
+  </div>
+</template>
+
+<script setup>
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import * as echarts from 'echarts'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CircleCheck, Clock, Delete, Download, Edit, InfoFilled,
+  Picture, Plus, Refresh, RefreshLeft, FullScreen, Upload, VideoPause, VideoPlay, View
+} from '@element-plus/icons-vue'
+import { getProject } from '@/api/projects'
+import {
+  getProjectTheme, updateProjectTheme,
+  getProjectH5, updateProjectH5, publishProjectH5,
+  getProjectLed, updateProjectLed, publishProjectLed,
+  listPageVersions, restorePageVersion,
+  getProjectFunnel,
+  getExperiment, createExperiment, deleteExperiment,
+  updateExperimentVariant, transitionExperiment, getExperimentStats,
+  exportFunnelCsv, exportExperimentCsv,
+  uploadBlockImage,
+} from '@/api/pages'
+
+const route = useRoute()
+const projectId = Number(route.params.id)
+
+const loading = ref(false)
+const saving = ref(false)
+const publishing = ref(false)
+const activeTab = ref('h5')
+const h5PageTab = ref('page1')
+
+const project = ref(null)
+const theme = ref(null)
+const h5 = ref(null)
+const led = ref(null)
+const versions = ref([])
+const projectMachines = computed(() => project.value?.machines || [])
+const previewMachineId = ref('')
+
+const themeForm = ref({
+  brand_color: '#14B450',
+  accent_color: '#0a0a0a',
+  text_color: '#FFFFFF',
+  background_type: 'color',
+  background_value: '#0a0a0a',
+  font_family: '"Noto Sans SC", -apple-system, sans-serif'
+})
+
+const h5Form = ref({
+  header_title: '',
+  header_subtitle: '',
+  blocks: [],
+  form_fields: [],
+  privacy: { enabled: true, text: '', url: '' },
+  submit_button: { text: '立即领取', color: '' },
+  success_view: { title: '', subtitle: '', code_label: '', footer_tip: '' },
+  rate_limit: 'per_device_day',
+  page1_background: { type: 'color', value: '#0a0a0a', fit: 'cover' },
+  page2_background: { type: 'color', value: '#0a0a0a', fit: 'cover' },
+  page3_background: { type: 'color', value: '#0a0a0a', fit: 'cover' },
+  header_position: { x: 50, y: 25 },
+  button_position: { x: 50, y: 75 },
+    header_font_color: '#FFFFFF',
+    header_font_size: 26,
+    page1_button_bg_color: '',
+    page1_button_text_color: '#FFFFFF',
+    page1_button_font_size: 16,
+})
+const h5Status = computed(() => h5.value?.status || 'draft')
+function movePos(field, axis, delta) {
+  if (!h5Form.value[field]) h5Form.value[field] = { x: 50, y: 25 }
+  h5Form.value[field][axis] = Math.max(0, Math.min(100, h5Form.value[field][axis] + delta))
+}
+function resetPos(field, x, y) {
+  h5Form.value[field] = { x, y }
+}
+const ledStatus = computed(() => led.value?.status || 'draft')
+
+// 顶栏徽章：根据当前 tab 切换
+const currentStatus = computed(() => {
+  if (activeTab.value === 'led') return ledStatus.value
+  return h5Status.value
+})
+const currentBadge = computed(() => {
+  if (activeTab.value === 'led') {
+    return ledStatus.value === 'published' ? `LED 已发布 v${led.value?.current_version || 0}` : 'LED 草稿'
+  }
+  if (activeTab.value === 'h5') {
+    return h5Status.value === 'published' ? `H5 已发布 v${h5.value?.current_version || 0}` : 'H5 草稿'
+  }
+  return '编辑中'
+})
+
+// ============ LED 状态 ============
+const ledForm = ref({
+  header_title: '',
+  header_subtitle: '',
+  ads: [],
+  qr: { label: '', url: '' },
+  input_config: { label: '', placeholder: '', submit_text: '', success_text: '' },
+  footer_tip: '',
+  page1_blocks: [],
+  page2_blocks: [],
+  page1_background: { type: 'color', value: '#0a0a0a', fit: 'cover' },
+  page2_background: { type: 'color', value: '#0a0a0a', fit: 'cover' },
+})
+const ledPreviewIframe = ref(null)
+const ledPreviewBust = ref(Date.now())
+const dragFromIndex = ref(-1)
+const dragOverIndex = ref('')
+const ledPreviewPage = ref('1')
+const ledPreviewUrl = computed(() => {
+  if (!previewMachineId.value) return 'about:blank'
+  return `/led/${previewMachineId.value}/?project_id=${projectId}&page=${ledPreviewPage.value}&_=${ledPreviewBust.value}`
+})
+function refreshLedPreview() { ledPreviewBust.value = Date.now() }
+
+// LED page tab (within LED tab)
+const ledPageTab = ref('page1')
+
+// LED block editing
+const ledBlockDlgVisible = ref(false)
+const editingLedBlockIndex = ref(-1)
+const editingLedBlockPage = ref('page1')
+const editingLedBlock = reactive({ id: '', type: 'text', props: {} })
+
+const LED_BLOCK_LABELS = {
+  image: '图片', video: '视频', text: '文本', rich_text: '富文本',
+  divider: '分割线', countdown: '倒计时',
+  qr_code: '二维码', redee: '领取礼品',
+}
+function ledBlockLabel(t) { return LED_BLOCK_LABELS[t] || t }
+
+function addLedBlock(page, type) {
+  const b = { id: genId('lb'), type, props: {} }
+  if (type === 'image') b.props = { url: '', alt: '', fullscreen: false }
+  else if (type === 'video') b.props = { url: '', autoplay: true, loop: true }
+  else if (type === 'text') b.props = { content: '', font_size: '', color: '', align: 'center', weight: '', margin: '' }
+  else if (type === 'rich_text') b.props = { html: '' }
+  else if (type === 'countdown') b.props = { label: '', deadline: '' }
+  else if (type === 'qr_code') b.props = { image_url: '', label: '扫码关注 · 领取样品', size: 440 }
+  else if (type === 'redeem') b.props = {
+    claim_btn_text: '立即领取礼品',
+    show_code_input: false,
+    code_length: 6,
+    show_product_grid: true,
+  }
+  ledForm.value[page + '_blocks'].push(b)
+  editLedBlock(page, ledForm.value[page + '_blocks'].length - 1)
+}
+
+function editLedBlock(page, i) {
+  editingLedBlockPage.value = page
+  editingLedBlockIndex.value = i
+  const src = ledForm.value[page + '_blocks'][i]
+  Object.assign(editingLedBlock, { id: src.id, type: src.type, props: { ...src.props } })
+  ledBlockDlgVisible.value = true
+}
+
+function commitLedBlock() {
+  const page = editingLedBlockPage.value
+  const i = editingLedBlockIndex.value
+  if (i < 0) return
+  ledForm.value[page + '_blocks'].splice(i, 1, {
+    id: editingLedBlock.id,
+    type: editingLedBlock.type,
+    props: { ...editingLedBlock.props },
+  })
+  ledBlockDlgVisible.value = false
+}
+
+function removeLedBlock(page, i) {
+  ElMessageBox.confirm('确定删除此区块？', '确认', { type: 'warning' })
+    .then(() => ledForm.value[page + '_blocks'].splice(i, 1))
+    .catch(() => {})
+}
+
+function moveLedBlock(page, i, delta) {
+  const j = i + delta
+  const arr = ledForm.value[page + '_blocks']
+  if (j < 0 || j >= arr.length) return
+  ;[arr[i], arr[j]] = [arr[j], arr[i]]
+}
+
+// ad 编辑 dialog
+const adDlgVisible = ref(false)
+const editingAdIndex = ref(-1)
+const editingAd = reactive({
+  type: 'image', url: '', duration_sec: 8,
+  schedule: {
+    enabled: false,
+    days_of_week: [1, 2, 3, 4, 5, 6, 7],
+    _startTime: '', _endTime: '',
+    _dateRange: null,
+  },
+})
+
+function _defaultSchedule() {
+  return {
+    enabled: false,
+    days_of_week: [1, 2, 3, 4, 5, 6, 7],
+    start_time: '', end_time: '',
+    start_date: '', end_date: '',
+  }
+}
+
+function addAd(type) {
+  const a = { type, url: '', duration_sec: 8, schedule: _defaultSchedule() }
+  ledForm.value.ads.push(a)
+  editAd(ledForm.value.ads.length - 1)
+}
+function editAd(i) {
+  editingAdIndex.value = i
+  const src = ledForm.value.ads[i]
+  const sched = src.schedule || _defaultSchedule()
+  Object.assign(editingAd, {
+    type: src.type || 'image',
+    url: src.url || '',
+    duration_sec: src.duration_sec || 8,
+    schedule: {
+      enabled: !!sched.enabled,
+      days_of_week: Array.isArray(sched.days_of_week) && sched.days_of_week.length
+        ? [...sched.days_of_week]
+        : [1, 2, 3, 4, 5, 6, 7],
+      _startTime: sched.start_time || '',
+      _endTime: sched.end_time || '',
+      _dateRange: (sched.start_date || sched.end_date)
+        ? [sched.start_date || '', sched.end_date || ''] : null,
+    },
+  })
+  adDlgVisible.value = true
+}
+function commitAd() {
+  const i = editingAdIndex.value
+  if (i < 0) return
+  const sched = editingAd.schedule || {}
+  const range = sched._dateRange || []
+  ledForm.value.ads.splice(i, 1, {
+    type: editingAd.type,
+    url: editingAd.url,
+    duration_sec: editingAd.duration_sec,
+    schedule: {
+      enabled: !!sched.enabled,
+      days_of_week: sched.days_of_week || [1, 2, 3, 4, 5, 6, 7],
+      start_time: sched._startTime || '',
+      end_time: sched._endTime || '',
+      start_date: range[0] || '',
+      end_date: range[1] || '',
+    },
+  })
+  adDlgVisible.value = false
+}
+function removeAd(i) {
+  ElMessageBox.confirm('确定删除此素材？', '确认', { type: 'warning' })
+    .then(() => ledForm.value.ads.splice(i, 1))
+    .catch(() => {})
+}
+function moveAd(i, delta) {
+  const j = i + delta
+  if (j < 0 || j >= ledForm.value.ads.length) return
+  const arr = ledForm.value.ads
+  ;[arr[i], arr[j]] = [arr[j], arr[i]]
+}
+
+function scheduleSummary(s) {
+  if (!s?.enabled) return ''
+  const parts = []
+  if (s.days_of_week && s.days_of_week.length && s.days_of_week.length < 7) {
+    const NAMES = ['', '一', '二', '三', '四', '五', '六', '日']
+    parts.push('周' + s.days_of_week.map(d => NAMES[d] || '?').join(','))
+  }
+  if (s.start_time || s.end_time) parts.push(`${s.start_time || '00:00'}-${s.end_time || '23:59'}`)
+  if (s.start_date || s.end_date) parts.push(`${s.start_date || '~'} ~ ${s.end_date || '~'}`)
+  return parts.length ? parts.join(' · ') : '全天'
+}
+
+// ============ iframe 预览 ============
+const previewIframe = ref(null)
+const h5PreviewMode = ref("phone")
+const h5PreviewFull = ref(false)
+const previewBust = ref(Date.now())
+const previewUrl = computed(() => {
+  // 变体编辑模式：iframe 强制渲染该变体（preview_variant=A|B）
+  if (variantEditing.value) {
+    return `/p/${projectId}/?preview_variant=${variantEditing.value.key}&_=${previewBust.value}`
+  }
+  return `/p/${projectId}/?preview=1&_=${previewBust.value}`
+})
+function refreshPreview() { previewBust.value = Date.now() }
+
+// ============ blocks 编辑 ============
+const blockDlgVisible = ref(false)
+const editingBlockIndex = ref(-1)
+const editingBlock = reactive({ id: '', type: 'text', props: {} })
+
+const BLOCK_LABELS = {
+  header: '页面头部', image: '图片', video: '视频', text: '文本', rich_text: '富文本',
+  divider: '分割线', countdown: '倒计时',
+  form: '表单(含字段)', privacy: '隐私声明', success: '成功视图',
+}
+function blockLabel(t) { return BLOCK_LABELS[t] || t }
+function blockSummary(b) {
+  const p = b.props || {}
+  if (b.type === 'header') return p.title || '(页面头部)'
+  if (b.type === 'image' || b.type === 'video') return p.url || '(未配置 URL)'
+  if (b.type === 'text') return (p.content || '(空)').slice(0, 40)
+  if (b.type === 'rich_text') return (p.html || '(空)').replace(/<[^>]+>/g, '').slice(0, 40)
+  if (b.type === 'countdown') return p.label || '(倒计时)'
+  if (b.type === 'form') return `${p.fields?.length || 0} 个字段, 按钮: "${p.submit_button?.text || '领取'}"`
+  if (b.type === 'privacy') return p.enabled !== false ? p.text || '(隐私声明)' : '(未启用)'
+  if (b.type === 'success') return `${p.title || ''} ${p.code_label || ''}`
+  if (b.type === 'qr_code') return (p.label || '(二维码)') + (p.image_url ? ' ✅' : ' ❌')
+  if (b.type === 'redeem') return p.claim_btn_text || '(领取礼品)'
+  return ''
+}
+function genId(prefix) { return prefix + '_' + Math.random().toString(36).slice(2, 8) }
+function addBlock(type) {
+  const b = { id: genId('b'), type, props: {} }
+  if (type === 'header') b.props = { title: '', subtitle: '' }
+  else if (type === 'image') b.props = { url: '', alt: '' }
+  else if (type === 'video') b.props = { url: '', autoplay: false, loop: false }
+  else if (type === 'text') b.props = { content: '', font_size: '', color: '', align: 'center', weight: '', margin: '' }
+  else if (type === 'rich_text') b.props = { html: '' }
+  else if (type === 'countdown') b.props = { label: '', deadline: '' }
+  else if (type === 'form') b.props = { fields: [], submit_button: { text: '立即领取', color: '' }, rate_limit: 'per_device_day' }
+  else if (type === 'privacy') b.props = { enabled: true, text: '我已阅读并同意《隐私协议》', url: '' }
+  else if (type === 'success') b.props = { title: '领取成功', subtitle: '每个设备每天只能领取一次', code_label: '您的兑换码', footer_tip: '请在终端页面输入此码进行核销' }
+  h5Form.value.blocks.push(b)
+  editBlock(h5Form.value.blocks.length - 1)
+}
+function editBlock(i) {
+  editingBlockIndex.value = i
+  const src = h5Form.value.blocks[i]
+  Object.assign(editingBlock, { id: src.id, type: src.type, props: { ...src.props } })
+  blockDlgVisible.value = true
+}
+function commitBlock() {
+  const i = editingBlockIndex.value
+  if (i < 0) return
+  h5Form.value.blocks.splice(i, 1, {
+    id: editingBlock.id,
+    type: editingBlock.type,
+    props: { ...editingBlock.props }
+  })
+  blockDlgVisible.value = false
+}
+function removeBlock(i) {
+  ElMessageBox.confirm('确定删除此区块？', '确认', { type: 'warning' })
+    .then(() => h5Form.value.blocks.splice(i, 1))
+    .catch(() => {})
+}
+async function moveBlock(i, delta) {
+  const j = i + delta
+  if (j < 0 || j >= h5Form.value.blocks.length) return
+  const arr = h5Form.value.blocks
+  ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  if (activeTab.value === 'h5' && !variantEditing.value) await saveH5_Silent()
+  else if (activeTab.value === 'led') await saveLed_Silent()
+}
+// 拖拽排序：将 arr[from] 移动到 arr[to]
+function moveTo(arr, from, to) {
+  if (from < 0 || from === to) return
+  const target = to > from ? to - 1 : to
+  const [item] = arr.splice(from, 1)
+  arr.splice(target, 0, item)
+  nextTick(async () => {
+    if (activeTab.value === 'h5' && !variantEditing.value) await saveH5_Silent()
+    else if (activeTab.value === 'led') await saveLed_Silent()
+  })
+}
+function moveToLed(arr, from, to) {
+  if (from < 0 || from === to) return
+  const target = to > from ? to - 1 : to
+  const [item] = arr.splice(from, 1)
+  arr.splice(target, 0, item)
+  nextTick(async () => {
+    if (activeTab.value === 'led') await saveLed_Silent()
+  })
+}
+function addFormField() {
+  editingFieldBlockId.value = editingBlock.id  // the block currently being edited in the dialog
+  const f = {
+    key: genId('f'),
+    label: '新字段',
+    type: 'text',
+    required: false,
+    placeholder: '',
+    validate_regex: '',
+    error_msg: '',
+    options: []
+  }
+  editingBlock.props.fields.push(f)
+  editFormFieldInline(editingBlock.props.fields.length - 1)
+}
+function editFormField(i) {
+  editingFieldBlockId.value = editingBlock.id
+  editFormFieldInline(i)
+}
+function editFormFieldInline(i) {
+  editingFieldIndex.value = i
+  const src = editingBlock.props.fields[i]
+  Object.assign(editingField, {
+    key: src.key || '',
+    label: src.label || '',
+    type: src.type || 'text',
+    required: !!src.required,
+    placeholder: src.placeholder || '',
+    validate_regex: src.validate_regex || '',
+    error_msg: src.error_msg || '',
+    options: JSON.parse(JSON.stringify(src.options || []))
+  })
+  fieldDlgVisible.value = true
+}
+
+// ============ form fields 编辑 ============
+const fieldDlgVisible = ref(false)
+const editingFieldIndex = ref(-1)
+const editingFieldBlockId = ref('')  // form 区块的 field 编辑：记录所属 block id
+const editingField = reactive({
+  key: '', label: '', type: 'text', required: false,
+  placeholder: '', validate_regex: '', error_msg: '', options: []
+})
+
+const FIELD_LABELS = {
+  text: '文本', tel: '手机号', radio: '单选', select: '下拉', checkbox: '勾选'
+}
+function fieldLabel(t) { return FIELD_LABELS[t] || t }
+
+function addField(type) {
+  const f = {
+    key: genId('f'),
+    label: '新字段',
+    type,
+    required: false,
+    placeholder: '',
+    validate_regex: type === 'tel' ? '^1[3-9]\\d{9}$' : '',
+    error_msg: type === 'tel' ? '请填写正确的手机号' : '',
+    options: ['radio', 'select'].includes(type) ? [{ value: 'opt1', label: '选项一', sublabel: '', icon: '' }] : []
+  }
+  h5Form.value.form_fields.push(f)
+  editField(h5Form.value.form_fields.length - 1)
+}
+function editField(i) {
+  editingFieldIndex.value = i
+  const src = h5Form.value.form_fields[i]
+  Object.assign(editingField, {
+    key: src.key || '',
+    label: src.label || '',
+    type: src.type || 'text',
+    required: !!src.required,
+    placeholder: src.placeholder || '',
+    validate_regex: src.validate_regex || '',
+    error_msg: src.error_msg || '',
+    options: JSON.parse(JSON.stringify(src.options || []))
+  })
+  fieldDlgVisible.value = true
+}
+function commitField() {
+  if (!editingField.key.trim()) {
+    ElMessage.error('字段 key 不能为空')
+    return
+  }
+  const i = editingFieldIndex.value
+  if (i < 0) return
+  const payload = {
+    key: editingField.key.trim(),
+    label: editingField.label,
+    type: editingField.type,
+    required: editingField.required,
+  }
+  if (editingField.placeholder) payload.placeholder = editingField.placeholder
+  if (editingField.validate_regex) payload.validate_regex = editingField.validate_regex
+  if (editingField.error_msg) payload.error_msg = editingField.error_msg
+  if (['radio', 'select'].includes(editingField.type)) {
+    payload.options = JSON.parse(JSON.stringify(editingField.options))
+  }
+  // 如果是 form 区块内的 field 编辑，写回 block.props.fields
+  if (editingFieldBlockId.value) {
+    const block = h5Form.value.blocks.find(b => b.id === editingFieldBlockId.value)
+    if (block && block.props.fields) {
+      block.props.fields.splice(i, 1, payload)
+    }
+  } else {
+    h5Form.value.form_fields.splice(i, 1, payload)
+  }
+  editingFieldBlockId.value = ''
+  fieldDlgVisible.value = false
+}
+function removeField(i) {
+  ElMessageBox.confirm('确定删除此字段？', '确认', { type: 'warning' })
+    .then(() => h5Form.value.form_fields.splice(i, 1))
+    .catch(() => {})
+}
+function moveField(i, delta) {
+  const j = i + delta
+  if (j < 0 || j >= h5Form.value.form_fields.length) return
+  const arr = h5Form.value.form_fields
+  ;[arr[i], arr[j]] = [arr[j], arr[i]]
+}
+
+const fontPresets = [
+  { label: '思源黑体（默认）', value: '"Noto Sans SC", -apple-system, sans-serif' },
+  { label: '苹方', value: '"PingFang SC", -apple-system, sans-serif' },
+  { label: '微软雅黑', value: '"Microsoft YaHei", sans-serif' },
+  { label: '宋体', value: 'SimSun, "Songti SC", serif' },
+  { label: '系统默认', value: '-apple-system, BlinkMacSystemFont, sans-serif' }
+]
+
+const previewBgStyle = computed(() => {
+  const t = themeForm.value
+  if (t.background_type === 'image' && theme.value?.background_image_url) {
+    return { background: `url(${theme.value.background_image_url}) center/cover, ${t.accent_color}` }
+  }
+  if (t.background_type === 'gradient') {
+    return { background: t.background_value || 'linear-gradient(135deg,#0a0a0a,#1a1a1a)' }
+  }
+  return { background: t.background_value || '#0a0a0a' }
+})
+
+// ============ 加载 ============
+async function loadAll() {
+  loading.value = true
+  try {
+    const [p, t, h, l, v] = await Promise.all([
+      getProject(projectId),
+      getProjectTheme(projectId),
+      getProjectH5(projectId),
+      getProjectLed(projectId),
+      listPageVersions(projectId)
+    ])
+    project.value = p
+    theme.value = t
+    h5.value = h
+    led.value = l
+    versions.value = v
+    syncThemeForm(t)
+    syncH5Form(h)
+    syncLedForm(l)
+    // 默认选第一台绑定的设备做预览
+    if (!previewMachineId.value && p.machines?.length) {
+      previewMachineId.value = p.machines[0].machine_id
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+function syncThemeForm(t) {
+  themeForm.value = {
+    brand_color: t.brand_color,
+    accent_color: t.accent_color,
+    text_color: t.text_color,
+    background_type: t.background_type,
+    background_value: t.background_value,
+    font_family: t.font_family
+  }
+}
+function syncH5Form(h) {
+  const clone = (v, fallback) => JSON.parse(JSON.stringify(v ?? fallback))
+  const blocks = clone(h.blocks, [])
+  // 向后兼容：从 blocks 中提取旧字段值（新样式保存的页面）
+  const form = {
+    header_title: h.header_title || '',
+    header_subtitle: h.header_subtitle || '',
+    blocks,
+    form_fields: clone(h.form_fields, []),
+    privacy: clone(h.privacy, { enabled: true, text: '', url: '' }),
+    submit_button: clone(h.submit_button, { text: '立即领取', color: '' }),
+    success_view: clone(h.success_view, { title: '', subtitle: '', code_label: '', footer_tip: '' }),
+    rate_limit: h.rate_limit || 'per_device_day',
+    page1_background: { fit: 'cover', ...clone(h.page1_background, { type: 'color', value: '#0a0a0a', fit: 'cover' }) },
+    page2_background: { fit: 'cover', ...clone(h.page2_background, { type: 'color', value: '#0a0a0a', fit: 'cover' }) },
+    page3_background: { fit: 'cover', ...clone(h.page3_background, { type: 'color', value: '#0a0a0a', fit: 'cover' }) },
+    page1_button_text: h.page1_button_text || '下一步',
+    page2_button_text: h.page2_button_text || '立即领取',
+    header_font_color: h.header_font_color || '#FFFFFF',
+    header_font_size: h.header_font_size || 26,
+    page1_button_bg_color: h.page1_button_bg_color || '',
+    page1_button_text_color: h.page1_button_text_color || '#FFFFFF',
+    page1_button_font_size: h.page1_button_font_size || 16,
+    header_position: clone(h.header_position, { x: 50, y: 25 }),
+    button_position: clone(h.button_position, { x: 50, y: 75 }),
+  }
+  for (const b of blocks) {
+    if (b.type === 'header') {
+      if (b.props.title) form.header_title = b.props.title
+      if (b.props.subtitle) form.header_subtitle = b.props.subtitle
+    }
+    if (b.type === 'form') {
+      if (b.props.fields?.length) form.form_fields = clone(b.props.fields, [])
+      if (b.props.submit_button) form.submit_button = { ...form.submit_button, ...b.props.submit_button }
+      if (b.props.rate_limit) form.rate_limit = b.props.rate_limit
+    }
+    if (b.type === 'privacy' && b.props.enabled) {
+      form.privacy = { enabled: true, text: b.props.text || '', url: b.props.url || '' }
+    }
+    if (b.type === 'success') {
+      form.success_view = { title: b.props.title || '', subtitle: b.props.subtitle || '', code_label: b.props.code_label || '', footer_tip: b.props.footer_tip || '' }
+    }
+  }
+  h5Form.value = form
+}
+
+function syncLedForm(l) {
+  const clone = (v, fallback) => JSON.parse(JSON.stringify(v ?? fallback))
+  ledForm.value = {
+    header_title: l.header_title || '',
+    header_subtitle: l.header_subtitle || '',
+    ads: clone(l.ads, []),
+    qr: clone(l.qr, { label: '', url: '' }),
+    input_config: clone(l.input_config, { label: '', placeholder: '', submit_text: '', success_text: '' }),
+    footer_tip: l.footer_tip || '',
+    page1_blocks: clone(l.page1_blocks, []),
+    page2_blocks: clone(l.page2_blocks, []),
+    page1_background: { fit: 'cover', ...clone(l.page1_background, { type: 'color', value: '#0a0a0a', fit: 'cover' }) },
+    page2_background: { fit: 'cover', ...clone(l.page2_background, { type: 'color', value: '#0a0a0a', fit: 'cover' }) },
+  }
+}
+
+function resetTheme() { syncThemeForm(theme.value) }
+function resetH5() {
+  // 变体编辑模式：恢复到变体快照
+  if (variantEditing.value && experiment.value) {
+    const v = experiment.value.variants.find(x => x.id === variantEditing.value.id)
+    if (v) {
+      const snap = v.h5_snapshot || {}
+      const base = _liveH5Backup.value || {}
+      h5Form.value = {
+        ...base, ...snap,
+        submit_button: { ...(base.submit_button || {}), ...(snap.submit_button || {}) },
+        privacy: { ...(base.privacy || {}), ...(snap.privacy || {}) },
+        success_view: { ...(base.success_view || {}), ...(snap.success_view || {}) },
+      }
+    }
+    return
+  }
+  syncH5Form(h5.value)
+}
+function resetLed() { syncLedForm(led.value) }
+
+// ============ 保存 ============
+async function saveTheme() {
+  saving.value = true
+  try {
+    const updated = await updateProjectTheme(projectId, { ...themeForm.value })
+    theme.value = updated
+    ElMessage.success('主题已保存')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveH5() {
+  // 只保留内容区块，header/form/privacy/success 由独立卡片管理
+  const payload = {
+    blocks: h5Form.value.blocks.filter(b => !['header','form','privacy','success'].includes(b.type)),
+    header_title: h5Form.value.header_title,
+    header_subtitle: h5Form.value.header_subtitle,
+    form_fields: h5Form.value.form_fields,
+    privacy: h5Form.value.privacy,
+    submit_button: h5Form.value.submit_button,
+    rate_limit: h5Form.value.rate_limit,
+    success_view: h5Form.value.success_view,
+    page1_background: h5Form.value.page1_background,
+    page2_background: h5Form.value.page2_background,
+    page3_background: h5Form.value.page3_background,
+    page1_button_text: h5Form.value.page1_button_text,
+    page2_button_text: h5Form.value.page2_button_text,
+    header_font_color: h5Form.value.header_font_color,
+    header_font_size: h5Form.value.header_font_size,
+    page1_button_bg_color: h5Form.value.page1_button_bg_color,
+    page1_button_text_color: h5Form.value.page1_button_text_color,
+    page1_button_font_size: h5Form.value.page1_button_font_size,
+    header_position: h5Form.value.header_position,
+    button_position: h5Form.value.button_position,
+  }
+
+  // Phase 2.4：变体编辑模式 → 保存到该变体快照
+  if (variantEditing.value) {
+    saving.value = true
+    try {
+      await updateExperimentVariant(projectId, variantEditing.value.id, { h5_snapshot: payload })
+      await loadExperiment()
+      ElMessage.success(`变体 ${variantEditing.value.key} 已保存`)
+      nextTick(refreshPreview)
+    } finally {
+      saving.value = false
+    }
+    return
+  }
+
+  saving.value = true
+  try {
+    const updated = await updateProjectH5(projectId, payload)
+    h5.value = updated
+    syncH5Form(updated)
+    ElMessage.success('草稿已保存（点击「发布到线上」让用户看到）')
+    nextTick(refreshPreview)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveLed() {
+  saving.value = true
+  try {
+    const updated = await updateProjectLed(projectId, { ...ledForm.value })
+    led.value = updated
+    syncLedForm(updated)
+    ElMessage.success('LED 草稿已保存（点「发布 LED 大屏」推送到设备）')
+    nextTick(refreshLedPreview)
+  } finally {
+    saving.value = false
+  }
+}
+
+// ============ 文件上传（multipart） ============
+async function uploadFile(field, opt) {
+  const fd = new FormData()
+  fd.append(field, opt.file)
+  try {
+    const updated = await updateProjectTheme(projectId, fd)
+    theme.value = updated
+    ElMessage.success('上传成功')
+  } catch (e) {
+    opt.onError?.(e)
+  }
+}
+
+async function uploadLedFile(field, opt) {
+  const fd = new FormData()
+  fd.append(field, opt.file)
+  try {
+    const updated = await updateProjectLed(projectId, fd)
+    led.value = updated
+    ElMessage.success('上传成功')
+    nextTick(refreshLedPreview)
+  } catch (e) {
+    opt.onError?.(e)
+  }
+}
+
+// 区块图片上传 — 上传成功后自动保存草稿并刷新预览
+async function onUploadBlockImage(opt, props, field = 'url') {
+  try {
+    const res = await uploadBlockImage(projectId, opt.file)
+    props[field] = res.url
+    // 如果上传的是背景图（field='value'），自动把 type 改为 'image'
+    if (field === 'value' && props.type !== undefined) {
+      props.type = 'image'
+    }
+    // 自动保存当前页面（H5 或 LED）并刷新预览
+    const tab = activeTab.value
+    if (tab === 'h5' && !variantEditing.value) {
+      await saveH5_Silent()
+    } else if (tab === 'led') {
+      await saveLed_Silent()
+    }
+    ElMessage.success('图片已上传')
+  } catch (e) {
+    ElMessage.error('上传失败')
+  }
+}
+
+// 静默保存 H5（不弹成功提示）
+async function saveH5_Silent() {
+  const payload = {
+    blocks: h5Form.value.blocks.filter(b => !['header','form','privacy','success'].includes(b.type)),
+    header_title: h5Form.value.header_title,
+    header_subtitle: h5Form.value.header_subtitle,
+    form_fields: h5Form.value.form_fields,
+    privacy: h5Form.value.privacy,
+    submit_button: h5Form.value.submit_button,
+    rate_limit: h5Form.value.rate_limit,
+    success_view: h5Form.value.success_view,
+    page1_background: h5Form.value.page1_background,
+    page2_background: h5Form.value.page2_background,
+    page3_background: h5Form.value.page3_background,
+    page1_button_text: h5Form.value.page1_button_text,
+    page2_button_text: h5Form.value.page2_button_text,
+    header_font_color: h5Form.value.header_font_color,
+    header_font_size: h5Form.value.header_font_size,
+    page1_button_bg_color: h5Form.value.page1_button_bg_color,
+    page1_button_text_color: h5Form.value.page1_button_text_color,
+    page1_button_font_size: h5Form.value.page1_button_font_size,
+    header_position: h5Form.value.header_position,
+    button_position: h5Form.value.button_position,
+  }
+  const updated = await updateProjectH5(projectId, payload)
+  h5.value = updated
+  syncH5Form(updated)
+  nextTick(refreshPreview)
+}
+
+// 静默保存 LED（不弹成功提示）
+async function saveLed_Silent() {
+  const updated = await updateProjectLed(projectId, { ...ledForm.value })
+  led.value = updated
+  syncLedForm(updated)
+  nextTick(refreshLedPreview)
+}
+
+// ============ 发布 ============
+async function onPublish() {
+  const isLed = activeTab.value === 'led'
+  const title = isLed ? '发布 LED 大屏到设备' : '发布 H5 到线上'
+  try {
+    const { value: note } = await ElMessageBox.prompt('发布说明（可选）', title, {
+      confirmButtonText: '发布', cancelButtonText: '取消', inputValue: ''
+    })
+    publishing.value = true
+    if (isLed) {
+      const res = await publishProjectLed(projectId, note || '')
+      led.value = res.page
+      syncLedForm(res.page)
+      versions.value = await listPageVersions(projectId)
+      ElMessage.success(`LED 已发布 v${res.version}`)
+      nextTick(refreshLedPreview)
+    } else {
+      const res = await publishProjectH5(projectId, note || '')
+      h5.value = res.page
+      syncH5Form(res.page)
+      versions.value = await listPageVersions(projectId)
+      ElMessage.success(`H5 已发布 v${res.version}`)
+      nextTick(refreshPreview)
+    }
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  } finally {
+    publishing.value = false
+  }
+}
+
+// ============ 版本回滚 ============
+const restoreDialog = ref(false)
+const restoreTarget = ref(null)
+const restoring = ref(false)
+const restoreOptions = ref({ include_theme: true, publish: false })
+
+function isCurrentVersion(row) {
+  if (row.page_type === 'h5') return row.version === h5.value?.current_version
+  if (row.page_type === 'led') return row.version === led.value?.current_version
+  return false
+}
+
+function openRestoreDialog(row) {
+  restoreTarget.value = row
+  restoreOptions.value = { include_theme: true, publish: false }
+  restoreDialog.value = true
+}
+
+async function doRestore() {
+  if (!restoreTarget.value) return
+  restoring.value = true
+  try {
+    const res = await restorePageVersion(projectId, restoreTarget.value.id, restoreOptions.value)
+    // 重新拉全套状态
+    const [h, l, v] = await Promise.all([
+      getProjectH5(projectId),
+      getProjectLed(projectId),
+      listPageVersions(projectId)
+    ])
+    h5.value = h
+    led.value = l
+    versions.value = v
+    syncH5Form(h)
+    syncLedForm(l)
+    // 如果主题也被改了，刷一下
+    if (res.restored.theme) {
+      const t = await getProjectTheme(projectId)
+      theme.value = t
+      syncThemeForm(t)
+    }
+    restoreDialog.value = false
+
+    if (res.mode === 'publish') {
+      ElMessage.success(`已回滚并发布为 v${res.restored.published_version}`)
+      nextTick(() => {
+        if (restoreTarget.value.page_type === 'led') refreshLedPreview()
+        else refreshPreview()
+      })
+    } else {
+      ElMessage.success('已恢复到草稿，请到对应 tab 检查后点「发布」生效到线上')
+      // 自动切到对应 tab，方便用户立刻看到结果
+      activeTab.value = restoreTarget.value.page_type === 'led' ? 'led' : 'h5'
+      nextTick(() => {
+        if (restoreTarget.value.page_type === 'led') refreshLedPreview()
+        else refreshPreview()
+      })
+    }
+  } finally {
+    restoring.value = false
+  }
+}
+
+function openPreview() {
+  if (activeTab.value === 'led') {
+    if (!previewMachineId.value) {
+      ElMessage.warning('请先在右侧预览栏选择一台设备')
+      return
+    }
+    window.open(`/led/${previewMachineId.value}/?project_id=${projectId}`, '_blank')
+  } else {
+    window.open(`/p/${projectId}/`, '_blank')
+  }
+}
+
+// ============ Phase 2.2 数据看板 ============
+const statsDays = ref(14)
+const statsLoading = ref(false)
+const funnel = ref(null)
+const trendChartEl = ref(null)
+const funnelChartEl = ref(null)
+let trendChart = null
+let funnelChart = null
+
+async function loadFunnel() {
+  statsLoading.value = true
+  try {
+    funnel.value = await getProjectFunnel(projectId, statsDays.value)
+    await nextTick()
+    renderTrend()
+    renderFunnel()
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+async function doExportFunnel() {
+  try {
+    await exportFunnelCsv(projectId, statsDays.value)
+    ElMessage.success('CSV 已下载')
+  } catch (e) { /* http 拦截器已弹错 */ }
+}
+
+async function doExportExperiment() {
+  try {
+    await exportExperimentCsv(projectId)
+    ElMessage.success('CSV 已下载')
+  } catch (e) { /* http 拦截器已弹错 */ }
+}
+
+function renderTrend() {
+  if (!trendChartEl.value || !funnel.value) return
+  if (!trendChart) trendChart = echarts.init(trendChartEl.value)
+  const s = funnel.value.series
+  trendChart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['H5 访问', 'LED 访问', '领码', '核销'], top: 0 },
+    grid: { left: 40, right: 20, top: 40, bottom: 40 },
+    xAxis: { type: 'category', data: s.map(d => d.date.slice(5)) },
+    yAxis: { type: 'value', minInterval: 1 },
+    series: [
+      { name: 'H5 访问', type: 'line', smooth: true, data: s.map(d => d.h5_visits), itemStyle: { color: '#409eff' } },
+      { name: 'LED 访问', type: 'line', smooth: true, data: s.map(d => d.led_visits), itemStyle: { color: '#e6a23c' } },
+      { name: '领码', type: 'line', smooth: true, data: s.map(d => d.claims), itemStyle: { color: '#67c23a' } },
+      { name: '核销', type: 'line', smooth: true, data: s.map(d => d.redeems), itemStyle: { color: '#f56c6c' } },
+    ]
+  }, true)
+}
+
+function renderFunnel() {
+  if (!funnelChartEl.value || !funnel.value) return
+  if (!funnelChart) funnelChart = echarts.init(funnelChartEl.value)
+  const t = funnel.value.totals
+  funnelChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c}' },
+    series: [{
+      type: 'funnel',
+      left: '10%', right: '10%', top: 10, bottom: 10,
+      width: '80%',
+      sort: 'descending',
+      gap: 4,
+      label: { show: true, position: 'inside', formatter: '{b}\n{c}' },
+      labelLine: { show: false },
+      data: [
+        { value: t.h5_visits, name: 'H5 访问' },
+        { value: t.uv_h5, name: 'H5 独立访客' },
+        { value: t.claims, name: '领码' },
+        { value: t.redeems, name: '核销' },
+      ]
+    }]
+  }, true)
+}
+
+// 切到 stats tab 才加载，避免不必要请求
+watch(activeTab, (tab, oldTab) => {
+  if (tab === 'stats') loadFunnel()
+  if (tab === 'experiment') loadExperiment()
+  // Phase 2.4：离开 H5 tab 自动退出变体编辑模式
+  if (oldTab === 'h5' && tab !== 'h5' && variantEditing.value) {
+    exitVariantEditing()
+  }
+})
+
+// ============ Phase 2.3 A/B 实验 ============
+const experiment = ref(null)
+const expStats = ref(null)
+const expActing = ref(false)
+const createExpDialog = ref(false)
+const newExp = ref({
+  name: 'A/B 实验', hypothesis: '',
+  variant_count: 2,
+  traffic_shares: [50, 50],
+})
+const shareSum = computed(() => (newExp.value.traffic_shares || []).reduce((a, b) => a + (b || 0), 0))
+function rebalanceShares() {
+  const n = newExp.value.variant_count
+  const per = Math.floor(100 / n)
+  const arr = Array(n).fill(per)
+  arr[n - 1] += 100 - per * n
+  newExp.value.traffic_shares = arr
+}
+
+// Phase 2.4 变体编辑模式：进入后 H5 tab 编辑/保存都路由到该变体
+const variantEditing = ref(null)
+// 保存进入变体模式前的 h5Form 快照，退出时恢复
+const _liveH5Backup = ref(null)
+
+const concludeDialog = ref(false)
+const concludeForm = ref({ winner: 'B', note: '' })
+
+function expStatusTag(s) {
+  return ({ draft: 'info', running: 'success', stopped: 'warning', concluded: '' })[s] || 'info'
+}
+function expStatusLabel(s) {
+  return ({ draft: '草稿', running: '进行中', stopped: '已暂停', concluded: '已结束' })[s] || s
+}
+function variantStat(key) {
+  return expStats.value?.variants?.find(v => v.key === key)
+    || { visits: 0, uv: 0, claims: 0, redeems: 0, claim_rate: 0, redeem_rate: 0 }
+}
+function leaderTag(key) {
+  if (!expStats.value?.significance) return ''
+  return expStats.value.significance.leader === key ? 'success' : 'info'
+}
+const anySigConfident = computed(() => {
+  const sig = expStats.value?.significance
+  if (!sig?.comparisons) return false
+  return sig.comparisons.some(c => c.confident)
+})
+
+async function loadExperiment() {
+  try {
+    const data = await getExperiment(projectId)
+    experiment.value = data.exists ? data : null
+    if (experiment.value && experiment.value.status === 'running') {
+      expStats.value = await getExperimentStats(projectId).catch(() => null)
+    } else if (experiment.value) {
+      expStats.value = await getExperimentStats(projectId).catch(() => null)
+    } else {
+      expStats.value = null
+    }
+  } catch (e) {
+    experiment.value = null
+    expStats.value = null
+  }
+}
+
+function openCreateExpDialog() {
+  newExp.value = {
+    name: 'A/B 实验', hypothesis: '',
+    variant_count: 2,
+    traffic_shares: [50, 50],
+  }
+  createExpDialog.value = true
+}
+
+async function doCreateExp() {
+  expActing.value = true
+  try {
+    await createExperiment(projectId, {
+      name: newExp.value.name,
+      hypothesis: newExp.value.hypothesis,
+      variant_count: newExp.value.variant_count,
+      traffic_shares: newExp.value.traffic_shares,
+    })
+    createExpDialog.value = false
+    ElMessage.success('实验已创建（草稿态），点「启动」开始分流')
+    await loadExperiment()
+  } finally {
+    expActing.value = false
+  }
+}
+
+async function expTransition(to) {
+  expActing.value = true
+  try {
+    await transitionExperiment(projectId, to)
+    ElMessage.success({
+      running: '实验启动，按 50/50 开始分流',
+      stopped: '已暂停',
+      concluded: '已结案',
+    }[to] || '已切换')
+    await loadExperiment()
+  } finally {
+    expActing.value = false
+  }
+}
+
+async function deleteExp() {
+  try {
+    await ElMessageBox.confirm('确认删除该实验？所有变体数据将无法恢复（访问记录保留）。', '删除实验', { type: 'warning' })
+    expActing.value = true
+    await deleteExperiment(projectId)
+    ElMessage.success('实验已删除')
+    await loadExperiment()
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  } finally {
+    expActing.value = false
+  }
+}
+
+// Phase 2.4 进入变体编辑模式
+function enterVariantEditing(v) {
+  if (!h5.value) return
+  // 备份当前 h5Form（如果不是从已 backup 状态进的）
+  if (!variantEditing.value) {
+    _liveH5Backup.value = JSON.parse(JSON.stringify(h5Form.value))
+  }
+  variantEditing.value = { id: v.id, key: v.key, name: v.name || '' }
+  // 用变体的快照填充 h5Form
+  const snap = v.h5_snapshot || {}
+  const merged = { ...(_liveH5Backup.value || h5Form.value), ...snap }
+  // submit_button / privacy / success_view 等嵌套对象需要深合并以防 snap 缺字段时丢失原 base 字段
+  merged.submit_button = { ...(_liveH5Backup.value?.submit_button || {}), ...(snap.submit_button || {}) }
+  merged.privacy = { ...(_liveH5Backup.value?.privacy || {}), ...(snap.privacy || {}) }
+  merged.success_view = { ...(_liveH5Backup.value?.success_view || {}), ...(snap.success_view || {}) }
+  merged.header_font_color = snap.header_font_color || _liveH5Backup.value?.header_font_color || '#FFFFFF'
+  merged.header_font_size = snap.header_font_size || _liveH5Backup.value?.header_font_size || 26
+  merged.page1_button_bg_color = snap.page1_button_bg_color || _liveH5Backup.value?.page1_button_bg_color || ''
+  merged.page1_button_text_color = snap.page1_button_text_color || _liveH5Backup.value?.page1_button_text_color || '#FFFFFF'
+  merged.page1_button_font_size = snap.page1_button_font_size || _liveH5Backup.value?.page1_button_font_size || 16
+  h5Form.value = merged
+  activeTab.value = 'h5'
+  nextTick(refreshPreview)
+  ElMessage.info(`已进入变体 ${v.key} 编辑模式，所有保存都写入该变体快照`)
+}
+
+function exitVariantEditing() {
+  variantEditing.value = null
+  // 恢复 live H5 内容
+  if (_liveH5Backup.value) {
+    h5Form.value = _liveH5Backup.value
+    _liveH5Backup.value = null
+  } else if (h5.value) {
+    syncH5Form(h5.value)
+  }
+  nextTick(refreshPreview)
+}
+
+function openConcludeDialog() {
+  concludeForm.value = {
+    winner: expStats.value?.significance?.leader || 'B',
+    note: '',
+  }
+  concludeDialog.value = true
+}
+
+async function doConclude() {
+  expActing.value = true
+  try {
+    await transitionExperiment(projectId, 'concluded', concludeForm.value)
+    concludeDialog.value = false
+    ElMessage.success(`实验已结案，胜出 ${concludeForm.value.winner}。H5 草稿已应用，请到 H5 tab 检查后发布`)
+    await loadExperiment()
+    // 刷新 H5 状态（base 被覆盖了）
+    h5.value = await getProjectH5(projectId)
+    syncH5Form(h5.value)
+  } finally {
+    expActing.value = false
+  }
+}
+
+// 窗口尺寸变化时重绘
+function onResize() {
+  trendChart?.resize()
+  funnelChart?.resize()
+}
+
+// 预览 iframe 发来的拖拽排序消息
+function onPreviewMessage(e) {
+  if (e.data?.type !== 'gush-block-reorder') return
+  const { fromIndex, toIndex } = e.data
+  if (activeTab.value !== 'h5' || variantEditing.value) return
+  const arr = h5Form.value.blocks
+  if (fromIndex < 0 || fromIndex >= arr.length || toIndex < 0 || toIndex >= arr.length) return
+  const [item] = arr.splice(fromIndex, 1)
+  arr.splice(toIndex, 0, item)
+  saveH5_Silent()
+}
+onMounted(() => {
+  window.addEventListener('resize', onResize)
+  // 监听预览 iframe 发来的拖拽排序消息
+  window.addEventListener('message', onPreviewMessage)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
+  window.removeEventListener('message', onPreviewMessage)
+  trendChart?.dispose()
+  funnelChart?.dispose()
+})
+
+onMounted(loadAll)
+</script>
+
+<style scoped>
+.page-editor { display: flex; flex-direction: column; gap: 14px; }
+.hdr-card :deep(.el-card__body) { display: none; }
+.hdr { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.hdr .title { font-size: 16px; font-weight: 600; }
+.hdr .spacer { flex: 1; }
+
+.editor-tabs :deep(.el-tabs__content) { padding-top: 8px; }
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.cfg-card { border: 1px solid var(--el-border-color-light); }
+.card-title { font-size: 14px; font-weight: 600; }
+.hint { color: var(--el-text-color-secondary); font-size: 12px; margin-left: 10px; }
+
+.preview-stage {
+  border-radius: 12px;
+  min-height: 240px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 30px;
+}
+.preview-card-inner { text-align: center; }
+.ph-h1 { font-size: 24px; font-weight: 700; }
+.ph-sub { font-size: 13px; margin: 4px 0 18px; }
+.ph-btn {
+  display: inline-block; padding: 10px 28px; border-radius: 10px;
+  color: #fff; font-weight: 600; font-size: 14px;
+}
+.ph-code {
+  margin-top: 16px; padding: 12px 18px; font-family: ui-monospace, Menlo, monospace;
+  font-size: 22px; letter-spacing: 6px; border: 1px dashed; border-radius: 8px;
+  display: inline-block;
+}
+
+.footer-bar {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding-top: 14px; margin-top: 14px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+@media (max-width: 1000px) {
+  .theme-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== H5 编辑器布局 ===== */
+.h5-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 14px;
+  align-items: start;
+}
+.h5-edit-col { display: flex; flex-direction: column; gap: 14px; }
+.h5-preview-col { position: sticky; top: 14px; }
+
+.hdr-spacer { flex: 1; }
+.cfg-card :deep(.el-card__header) { display: flex; align-items: center; gap: 10px; }
+.cfg-card :deep(.el-card__header) .card-title { flex-shrink: 0; }
+
+.item-list { display: flex; flex-direction: column; gap: 8px; }
+.item-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  cursor: grab;
+  transition: border-color .2s, background .2s;
+}
+.item-row[draggable="true"]:active { cursor: grabbing; }
+.item-row.is-drag-over {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+.drag-handle {
+  flex-shrink: 0; cursor: grab; font-size: 18px;
+  color: var(--el-text-color-placeholder); line-height: 1;
+  user-select: none; padding: 0 2px;
+}
+.drag-handle:active { cursor: grabbing; }
+.item-info {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+.item-summary {
+  font-size: 13px; color: var(--el-text-color-regular);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.key-tag {
+  background: var(--el-color-info-light-8);
+  color: var(--el-color-info);
+  padding: 1px 6px; border-radius: 4px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+}
+.req-mini { color: var(--el-color-danger); font-size: 11px; }
+.item-actions { flex-shrink: 0; }
+
+.opt-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.opt-row .el-input { flex: 1; }
+
+/* iframe 预览 */
+.preview-frame-wrap {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 12px;
+  padding: 12px;
+}
+.preview-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  margin-bottom: 10px;
+}
+.phone-frame {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  border: 8px solid #1a1a1a;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.phone-iframe { width: 100%; height: 100%; border: 0; display: block; background: #0a0a0a; }
+.preview-hint {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .h5-layout { grid-template-columns: 1fr; }
+  .h5-preview-col { position: static; }
+  .phone-frame { max-width: 360px; margin: 0 auto; }
+}
+
+/* ===== LED 编辑器布局 ===== */
+.led-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 520px;
+  gap: 14px;
+  align-items: start;
+}
+.led-edit-col { display: flex; flex-direction: column; gap: 14px; }
+.led-preview-col { position: sticky; top: 14px; }
+
+.duration-tag {
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-family: ui-monospace, Menlo, monospace;
+}
+
+.led-frame {
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 9 / 16;
+  border: 6px solid #1a1a1a;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.led-iframe { width: 100%; height: 100%; border: 0; display: block; background: #0a0a0a; }
+
+@media (max-width: 1200px) {
+  .led-layout { grid-template-columns: 1fr; }
+  .led-preview-col { position: static; }
+}
+
+/* ===== Phase 2.2 数据看板 ===== */
+.stats-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.kpi-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.kpi-card.success { border-left: 4px solid var(--el-color-success); }
+.kpi-card.warning { border-left: 4px solid var(--el-color-warning); }
+.kpi-card.primary { border-left: 4px solid var(--el-color-primary); }
+.kpi-label { color: var(--el-text-color-secondary); font-size: 13px; }
+.kpi-value { font-size: 28px; font-weight: 700; color: var(--el-text-color-primary); margin-top: 4px; line-height: 1.2; }
+.kpi-sub { color: var(--el-text-color-secondary); font-size: 12px; margin-top: 4px; }
+
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ===== Phase 2.3 A/B 实验 ===== */
+.variants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.variant-card { border: 1px solid var(--el-border-color-light); }
+
+.shares-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.share-cell { display: flex; align-items: center; gap: 4px; }
+.share-tag {
+  display: inline-block; margin-right: 14px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+}
+.share-label {
+  background: var(--el-color-primary-light-9); color: var(--el-color-primary);
+  font-weight: 600; width: 24px; height: 24px;
+  border-radius: 4px; text-align: center; line-height: 24px;
+}
+.share-pct { color: var(--el-text-color-secondary); font-size: 12px; }
+
+@media (max-width: 900px) {
+  .variants-grid { grid-template-columns: 1fr; }
+}
+
+/* ============ Phase 5.x: 预览全屏 / 大尺寸切换 ============ */
+.preview-stage-h5 {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.preview-stage-h5.mode-phone .phone-frame {
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 9 / 16;
+}
+.preview-stage-h5.mode-full .phone-frame {
+  width: 100%;
+  max-width: 480px;
+  height: calc(100vh - 280px);
+  min-height: 520px;
+  aspect-ratio: auto;
+  border-radius: 12px;
+  border-width: 3px;
+}
+.preview-frame-wrap.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  border: none;
+  border-radius: 0;
+  padding: 16px 20px;
+  background: var(--el-bg-color-page);
+  overflow: auto;
+}
+.preview-frame-wrap.is-fullscreen .preview-stage-h5.mode-phone .phone-frame {
+  max-width: 420px;
+  height: calc(100vh - 100px);
+  aspect-ratio: 9 / 16;
+}
+.preview-frame-wrap.is-fullscreen .preview-stage-h5.mode-full .phone-frame {
+  max-width: none;
+  width: calc(100vw - 80px);
+  height: calc(100vh - 100px);
+  aspect-ratio: auto;
+}
+</style>

@@ -1,0 +1,44 @@
+/**
+ * 项目 / 兑换码 API
+ */
+import http from './http'
+
+// ---- 项目 ----
+export function listProjects(params = {}) {
+  return http.get('/projects/projects/', { params })
+}
+export function getProject(id) {
+  return http.get(`/projects/projects/${id}/`)
+}
+export function createProject(data) {
+  return http.post('/projects/projects/', data)
+}
+export function updateProject(id, data) {
+  return http.patch(`/projects/projects/${id}/`, data)
+}
+export function deleteProject(id) {
+  return http.delete(`/projects/projects/${id}/`)
+}
+export function bindMachines(id, machineIds) {
+  return http.post(`/projects/projects/${id}/bind_machines/`, { machine_ids: machineIds })
+}
+export function bindProducts(id, productIds) {
+  return http.post(`/projects/projects/${id}/bind_products/`, { product_ids: productIds })
+}
+export function generateCodes(id, count) {
+  return http.post(`/projects/projects/${id}/generate_codes/`, { count })
+}
+export function preflightProject(id) {
+  return http.get(`/projects/projects/${id}/preflight/`)
+}
+export function transitionProject(id, to, force = false) {
+  return http.post(`/projects/projects/${id}/transition/`, { to, force })
+}
+
+// ---- 兑换码 ----
+export function listRedeemCodes(params = {}) {
+  return http.get('/projects/codes/', { params })
+}
+export function revokeCode(id) {
+  return http.post(`/projects/codes/${id}/revoke/`, {})
+}

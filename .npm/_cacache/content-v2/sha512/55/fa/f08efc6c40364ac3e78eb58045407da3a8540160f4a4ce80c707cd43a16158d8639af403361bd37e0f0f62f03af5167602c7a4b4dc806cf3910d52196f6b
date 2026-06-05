@@ -1,0 +1,202 @@
+{
+  "name": "type-check",
+  "dist-tags": {
+    "latest": "0.4.0"
+  },
+  "versions": {
+    "0.1.0": {
+      "name": "type-check",
+      "version": "0.1.0",
+      "description": "type-check allows you to check the types of JavaScript values at runtime with a Haskell like type syntax.",
+      "dist": {
+        "shasum": "0f759b00c1e86cfa8498e269f0b43ee49ca1ee6e",
+        "tarball": "http://mirrors.tencentyun.com/npm/type-check/-/type-check-0.1.0.tgz",
+        "integrity": "sha512-Fa+f8VIdoC549IegnCGQwSrLEf+RRrXxUQtuLzHgris9s6ra4miPIAeqWGhe1xnl8TFA3XCkLz0hg3CbBH+jIg==",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEQCIDJaitEQFC3KfXsuMg2Qetu3YXkBnlt8CQbxDUh/TySPAiABJAhjJWezbFrd2xZZQ8bRByWQR3raOFH36Fp0CUTJOg=="
+          }
+        ]
+      },
+      "engines": {
+        "node": ">= 0.8.0"
+      },
+      "directories": {},
+      "dependencies": {
+        "prelude-ls": "~1.0.3"
+      },
+      "devDependencies": {
+        "LiveScript": "~1.2.0",
+        "mocha": "~1.8.2",
+        "istanbul": "~0.1.43",
+        "browserify": "~2.33"
+      },
+      "hasInstallScript": false
+    },
+    "0.2.0": {
+      "name": "type-check",
+      "version": "0.2.0",
+      "description": "type-check allows you to check the types of JavaScript values at runtime with a Haskell like type syntax.",
+      "dist": {
+        "shasum": "fd99b899c446563284b2f2451eaf655b4d74f42f",
+        "tarball": "http://mirrors.tencentyun.com/npm/type-check/-/type-check-0.2.0.tgz",
+        "integrity": "sha512-zoEMCF2se28RYS7DdK9JgZdMRbYAQp03hsDn9Bh9tZNqXI2tveU5tFTDdxz2nj3snPktAVz4hunSCQC7P1tQig==",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEUCIDrE8u9Q2gJecLBqPE4TQBJ4lr9anJSnkAb71ibAyKZZAiEAlKcFtvxGxn7wTPlSQZrbz85/M2C7wOHTlLY1BKbaDvM="
+          }
+        ]
+      },
+      "engines": {
+        "node": ">= 0.8.0"
+      },
+      "directories": {},
+      "dependencies": {
+        "prelude-ls": "~1.0.3"
+      },
+      "devDependencies": {
+        "LiveScript": "~1.2.0",
+        "mocha": "~1.8.2",
+        "istanbul": "~0.1.43",
+        "browserify": "~2.33"
+      },
+      "hasInstallScript": false
+    },
+    "0.3.0": {
+      "name": "type-check",
+      "version": "0.3.0",
+      "description": "type-check allows you to check the types of JavaScript values at runtime with a Haskell like type syntax.",
+      "dist": {
+        "shasum": "7a7b83669187dc220795abf6aab61a4ab5f87eeb",
+        "tarball": "http://mirrors.tencentyun.com/npm/type-check/-/type-check-0.3.0.tgz",
+        "integrity": "sha512-qdtj9z8BVhAi/VHHF7M4nQpgHWaeF16ZcuZoituZtleDqCLGBlQ18w6lS5KG0DTCMXXeTXOkpfcY3BGHavkl0w==",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEQCIE6js4FdMkJBK/wih4tcoVyta/IYpITkuzV2qgkkpnlwAiBUionYs63qw4eYJP9sZ7eHnTec1KNYCoNFX3tpu1lvow=="
+          }
+        ]
+      },
+      "engines": {
+        "node": ">= 0.8.0"
+      },
+      "directories": {},
+      "dependencies": {
+        "prelude-ls": "~1.0.3"
+      },
+      "devDependencies": {
+        "LiveScript": "~1.2.0",
+        "mocha": "~1.8.2",
+        "istanbul": "~0.1.43",
+        "browserify": "~2.33"
+      },
+      "hasInstallScript": false
+    },
+    "0.3.1": {
+      "name": "type-check",
+      "version": "0.3.1",
+      "description": "type-check allows you to check the types of JavaScript values at runtime with a Haskell like type syntax.",
+      "dist": {
+        "shasum": "9233923c4da174d0ac5480ecfd6ef84c349eb58d",
+        "tarball": "http://mirrors.tencentyun.com/npm/type-check/-/type-check-0.3.1.tgz",
+        "integrity": "sha512-xuasImFQIdR/WTPKyDmJyQAgfVKGDrDekQ9f98kd+QrEPojQ6zmyMx0WH30FeGBs0ovcV76nH2cmWYL27FwyYw==",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEQCIEV6gZnjAgRmXKbt+j+4LhbIJHum6RDANR0MgVA368TUAiBKJJfiweBWfp0GgyN8cHs6ceVDjHF8og9vvBESbnKsww=="
+          }
+        ]
+      },
+      "engines": {
+        "node": ">= 0.8.0"
+      },
+      "directories": {},
+      "dependencies": {
+        "prelude-ls": "~1.1.0"
+      },
+      "devDependencies": {
+        "LiveScript": "~1.2.0",
+        "mocha": "~1.8.2",
+        "istanbul": "~0.1.43",
+        "browserify": "~2.33"
+      },
+      "hasInstallScript": false
+    },
+    "0.3.2": {
+      "name": "type-check",
+      "version": "0.3.2",
+      "description": "type-check allows you to check the types of JavaScript values at runtime with a Haskell like type syntax.",
+      "dist": {
+        "shasum": "5884cab512cf1d355e3fb784f30804b2b520db72",
+        "tarball": "http://mirrors.tencentyun.com/npm/type-check/-/type-check-0.3.2.tgz",
+        "integrity": "sha512-ZCmOJdvOWDBYJlzAoFkC+Q0+bUyEOS1ltgp1MGU03fqHG+dbi9tBFU2Rd9QKiDZFAYrhPh2JUf7rZRIuHRKtOg==",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEYCIQDDMcsBz7Lj+6hg73Hh5nV3qNRMho2c0/06h4Oh1q7W7wIhALB5aItFMIAfTEiU57T1G9/V3GEtMAANdXokxVV1xYL6"
+          }
+        ]
+      },
+      "engines": {
+        "node": ">= 0.8.0"
+      },
+      "directories": {},
+      "dependencies": {
+        "prelude-ls": "~1.1.2"
+      },
+      "devDependencies": {
+        "livescript": "~1.4.0",
+        "mocha": "~2.3.4",
+        "istanbul": "~0.4.1",
+        "browserify": "~12.0.1"
+      },
+      "hasInstallScript": false
+    },
+    "0.4.0": {
+      "name": "type-check",
+      "version": "0.4.0",
+      "description": "type-check allows you to check the types of JavaScript values at runtime with a Haskell like type syntax.",
+      "dist": {
+        "integrity": "sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==",
+        "shasum": "07b8203bfa7056c0657050e3ccd2c37730bab8f1",
+        "tarball": "http://mirrors.tencentyun.com/npm/type-check/-/type-check-0.4.0.tgz",
+        "fileCount": 6,
+        "unpackedSize": 21167,
+        "npm-signature": "-----BEGIN PGP SIGNATURE-----\r\nVersion: OpenPGP.js v3.0.4\r\nComment: https://openpgpjs.org\r\n\r\nwsFcBAEBCAAQBQJehqdNCRA9TVsSAnZWagAAocIP+QBFVcDtXiR5+7Hz4iYD\n9JmNZ0ds4iv0ikouJ1l6oovyss8xfQ/RPbnDULDGQSnkRF3jiRx1p1R7A46Y\n9GoVv16++n+r9pZ8U0szrN/yToqMHixPcv2K8+sm7vbwMW4lQ3LKJpl4X+6O\nsKEZXbSS5nkn8F+KOZgj9CytL5gQWlaUsZ+7fO080pRywrN8MhI6FNULBbRT\nwPBfyby1d/gsYpmyDSjJYZE3hvIlQIvwr+kBiwnYSCZqxfQQQY9ETJ1TSFBI\n1C1DGL6xL+/gjvWZ+V7a7OXHP4i5vxxLENgLpQjDHIrD8yETnxbqkHlLmBSJ\nk6e7A0+Ey0JwjM/29lRRN70Ko607bbToYzp/z/fZjindBJNqoAYNDaEh6bfc\nNtHFuA82J5eRGvDW3WgLCmwVXhghiKNLFsCi6bHSNR86uOdsitKPS7V1X999\nzMJt+REn/zFxQFFoxiq0pTQi3LzOI6OyfPkX0qJc75+r5fiGhUZ6c5b3jtob\nms+nQpgeWeQKHkuSKxp7Ie0bBtPeaY/oOBI89Z7BHeLKina0mEUj+lt7UyMl\nwOuLY/ueN6tHWzoh2al9abV786XATPkvd5b8+BD8B1FU+pTU+RllijAeXFpv\nZbRBakO+f06aAI4pfG+aMaE5Kzb89QG1Uwpf8T9I9z4kYduiBNslBjWwymba\nzsIG\r\n=5UkA\r\n-----END PGP SIGNATURE-----\r\n",
+        "signatures": [
+          {
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA",
+            "sig": "MEQCIFHqpC5D0JgGiQ70hWkqW70c6NSuoqu6JME6wRsb8lo7AiBwGwiBYuThsiyEPI184p6J4MrNAMaqcyhZppZjjO3o/g=="
+          }
+        ]
+      },
+      "engines": {
+        "node": ">= 0.8.0"
+      },
+      "directories": {},
+      "dependencies": {
+        "prelude-ls": "^1.2.1"
+      },
+      "devDependencies": {
+        "livescript": "^1.6.0",
+        "mocha": "^7.1.1",
+        "browserify": "^16.5.1"
+      },
+      "_hasShrinkwrap": false,
+      "hasInstallScript": false
+    }
+  },
+  "modified": "2023-06-22T16:33:59.902Z",
+  "time": {
+    "modified": "2023-06-22T16:33:59.902Z",
+    "created": "2013-09-29T18:38:27.392Z",
+    "0.1.0": "2013-09-29T18:38:30.708Z",
+    "0.2.0": "2013-10-02T23:07:23.499Z",
+    "0.3.0": "2013-10-29T23:11:33.218Z",
+    "0.3.1": "2014-04-08T05:55:00.320Z",
+    "0.3.2": "2015-12-29T05:46:21.672Z",
+    "0.4.0": "2020-04-03T03:02:37.249Z"
+  }
+}

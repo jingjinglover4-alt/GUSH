@@ -1,0 +1,580 @@
+<template>
+  <div v-loading="loading" class="project-detail">
+    <!-- 顶部信息 -->
+    <el-card v-if="project" shadow="never" class="info-card">
+      <template #header>
+        <div class="header-row">
+          <el-button :icon="ArrowLeft" link @click="$router.push('/projects')">返回列表</el-button>
+          <span class="title">{{ project.name }}</span>
+          <el-tag :type="statusTag(project.status)" size="small">{{ statusLabel(project.status) }}</el-tag>
+          <div class="spacer" />
+          <!-- 状态转移按钮：随 project.status 变化 -->
+          <template v-if="project.status === 'draft'">
+            <el-button type="success" :icon="VideoPlay" :loading="transitioning" @click="onPublish">
+              发布上线
+            </el-button>
+          </template>
+          <template v-else-if="project.status === 'running'">
+            <el-button :icon="VideoPause" :loading="transitioning" @click="onTransition('paused')">
+              暂停
+            </el-button>
+            <el-button type="danger" plain :icon="CircleClose" :loading="transitioning" @click="onTransition('finished')">
+              结束活动
+            </el-button>
+          </template>
+          <template v-else-if="project.status === 'paused'">
+            <el-button type="success" :icon="VideoPlay" :loading="transitioning" @click="onTransition('running')">
+              继续
+            </el-button>
+            <el-button type="danger" plain :icon="CircleClose" :loading="transitioning" @click="onTransition('finished')">
+              结束活动
+            </el-button>
+          </template>
+
+          <el-button :icon="MagicStick" type="primary" @click="$router.push(`/projects/${$route.params.id}/page-editor`)">
+            页面装修
+          </el-button>
+          <el-button :icon="User" @click="$router.push(`/projects/${$route.params.id}/leads`)">
+            用户获客
+          </el-button>
+          <el-button :icon="Link" @click="openH5">打开 H5 页面</el-button>
+          <el-button :icon="Refresh" @click="reload">刷新</el-button>
+        </div>
+      </template>
+
+      <el-descriptions :column="3" border size="small">
+        <el-descriptions-item label="时间" :span="2">
+          {{ formatTime(project.starts_at) }} ~ {{ formatTime(project.ends_at) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="码长度 / 有效秒数">
+          {{ project.code_length }} 位 / {{ project.code_validity_seconds }} 秒
+        </el-descriptions-item>
+        <el-descriptions-item label="活动描述" :span="3">{{ project.description || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="活动规则" :span="3">
+          <pre class="rules">{{ project.rules_text || '—' }}</pre>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
+    <!-- 客户端看板链接 -->
+    <el-card v-if="project" shadow="never" class="info-card">
+      <template #header>
+        <div class="header-row">
+          <span class="title">客户端看板</span>
+          <span class="hint" style="color:#909399;font-size:12px">将此链接发给客户甲方，手机上即可查看项目数据</span>
+          <div class="spacer" />
+        </div>
+      </template>
+      <div class="client-url-row" v-if="project.client_url">
+        <code class="url-text">{{ project.client_url }}</code>
+        <el-button type="primary" size="small" plain @click="copyClientUrl">复制链接</el-button>
+        <el-button size="small" plain @click="openClientUrl" :icon="Link">打开</el-button>
+      </div>
+      <div v-else class="unset-row">客户端 token 尚未生成</div>
+    </el-card>
+
+    <!-- 设备绑定 -->
+    <el-card v-if="project" shadow="never" class="info-card">
+      <template #header>
+        <div class="header-row">
+          <span class="title">绑定设备（{{ project.machines.length }} 台）</span>
+          <div class="spacer" />
+          <el-button :icon="Edit" @click="openBindDialog">修改绑定</el-button>
+        </div>
+      </template>
+      <el-table :data="project.machines" stripe size="small">
+        <el-table-column prop="machine_id" label="设备编号" width="130" />
+        <el-table-column prop="name" label="名称" width="120" />
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="machineStatusTag(row.status)" size="small">{{ machineStatusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="H5 落地页 URL" min-width="320">
+          <template #default="{ row }">
+            <AccessUrlCard
+              label="H5"
+              :url="sys.h5Url(project.id, row.machine_id)"
+              :machine-id="row.id" />
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- 礼品挂载 -->
+    <el-card v-if="project" shadow="never" class="info-card">
+      <template #header>
+        <div class="header-row">
+          <span class="title">本活动礼品（{{ project.products?.length || 0 }} 个）</span>
+          <div class="spacer" />
+          <el-button :icon="Edit" @click="openProductDialog">选择礼品</el-button>
+        </div>
+      </template>
+      <el-empty v-if="!project.products?.length" description="尚未挂载礼品（兑换时将允许任意货道出货）" :image-size="60" />
+      <el-table v-else :data="project.products" stripe size="small">
+        <el-table-column label="封面" width="64">
+          <template #default="{ row }">
+            <el-image v-if="row.image_url" :src="row.image_url" fit="cover" style="width:40px;height:40px;border-radius:4px" />
+            <span v-else style="color:#666">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sku" label="SKU" width="120" />
+        <el-table-column prop="name" label="名称" />
+        <el-table-column prop="brand" label="品牌" width="120" />
+        <el-table-column prop="total_stock" label="仓库库存" width="100" align="right" />
+      </el-table>
+    </el-card>
+
+    <!-- 兑换码 -->
+    <el-card v-if="project" shadow="never" class="info-card">
+      <template #header>
+        <div class="header-row">
+          <span class="title">兑换码（共 {{ codeTotal }} 个 · 已用 {{ codeUsed }}）</span>
+          <el-select v-model="codeFilter" placeholder="状态" style="width:120px;margin-left:12px" @change="loadCodes">
+            <el-option label="全部" value="" />
+            <el-option label="未使用" value="unused" />
+            <el-option label="已使用" value="used" />
+            <el-option label="已过期" value="expired" />
+            <el-option label="已作废" value="revoked" />
+          </el-select>
+          <div class="spacer" />
+          <el-button :icon="Plus" type="primary" @click="openGenDialog">批量生成</el-button>
+        </div>
+      </template>
+
+      <el-table v-loading="codeLoading" :data="codes" size="small">
+        <el-table-column prop="code" label="兑换码" width="160">
+          <template #default="{ row }"><code class="code-cell">{{ row.code }}</code></template>
+        </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="codeStatusTag(row.status)" size="small">{{ row.status_label }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="过期时间" width="180">
+          <template #default="{ row }">{{ formatTime(row.expires_at) }}</template>
+        </el-table-column>
+        <el-table-column label="使用时间" width="180">
+          <template #default="{ row }">{{ row.used_at ? formatTime(row.used_at) : '—' }}</template>
+        </el-table-column>
+        <el-table-column label="使用设备 / 货道" min-width="160">
+          <template #default="{ row }">
+            {{ row.used_machine_id || '—' }}<span v-if="row.used_on_channel_code"> · {{ row.used_on_channel_code }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="row.status === 'unused'" link type="danger" @click="doRevoke(row)">作废</el-button>
+            <span v-else style="color:#909399">—</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-if="codePage.total > codePage.pageSize"
+        v-model:current-page="codePage.current"
+        :page-size="codePage.pageSize"
+        :total="codePage.total"
+        layout="prev, pager, next, total"
+        style="margin-top:12px;justify-content:flex-end;display:flex"
+        @current-change="loadCodes"
+      />
+    </el-card>
+
+    <!-- 绑定设备弹窗 -->
+    <el-dialog v-model="bindDialog" title="选择关联设备" width="520px">
+      <el-table v-loading="machinesLoading" :data="allMachines" max-height="380"
+                @selection-change="(s) => (selectedMachineIds = s.map(m => m.id))" ref="machineTableRef">
+        <el-table-column type="selection" width="48" />
+        <el-table-column prop="machine_id" label="设备编号" width="130" />
+        <el-table-column prop="name" label="名称" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="machineStatusTag(row.status)" size="small">{{ machineStatusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="bindDialog = false">取消</el-button>
+        <el-button type="primary" :loading="bindSaving" @click="submitBind">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 选择礼品弹窗 -->
+    <el-dialog v-model="productDialog" title="选择本活动礼品" width="640px">
+      <el-input v-model="productSearch" placeholder="按名称/SKU/品牌搜索" clearable style="width:240px;margin-bottom:8px" @input="loadProducts" />
+      <el-table v-loading="productsLoading" :data="allProducts" max-height="380"
+                @selection-change="(s) => (selectedProductIds = s.map(p => p.id))"
+                ref="productTableRef">
+        <el-table-column type="selection" width="48" />
+        <el-table-column prop="sku" label="SKU" width="120" />
+        <el-table-column prop="name" label="名称" />
+        <el-table-column prop="brand" label="品牌" width="100" />
+        <el-table-column label="仓库" width="80" align="right">
+          <template #default="{ row }">{{ row.total_stock }}</template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="productDialog = false">取消</el-button>
+        <el-button type="primary" :loading="productSaving" @click="submitProducts">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量生成兑换码 -->
+    <el-dialog v-model="genDialog" title="批量生成兑换码" width="400px">
+      <el-form label-width="80px">
+        <el-form-item label="数量">
+          <el-input-number v-model="genCount" :min="1" :max="10000" />
+        </el-form-item>
+        <el-form-item label="码长度">
+          <el-input :value="`${project?.code_length} 位（项目设置）`" disabled />
+        </el-form-item>
+        <el-form-item label="有效期">
+          <el-input :value="`${project?.code_validity_seconds} 秒（从此刻起）`" disabled />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="genDialog = false">取消</el-button>
+        <el-button type="primary" :loading="genSaving" @click="submitGen">生成</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- ===== 发布前自检 dialog ===== -->
+    <el-dialog v-model="preflightDialog" title="发布上线 · 前置自检" width="520px">
+      <div v-if="preflightData">
+        <el-alert
+          v-if="!preflightData.can_publish"
+          type="error" :closable="false" show-icon
+          title="存在必须修复的问题（block），无法发布"
+          style="margin-bottom:14px"
+        />
+        <el-alert
+          v-else-if="preflightWarnings.length"
+          type="warning" :closable="false" show-icon
+          title="有警告项（warn），可强制发布"
+          style="margin-bottom:14px"
+        />
+        <el-alert
+          v-else
+          type="success" :closable="false" show-icon
+          title="全部检查通过"
+          style="margin-bottom:14px"
+        />
+
+        <div v-for="c in preflightData.checks" :key="c.key" class="preflight-row">
+          <el-icon v-if="c.ok" class="ok-icon"><CircleCheckFilled /></el-icon>
+          <el-icon v-else-if="c.severity === 'block'" class="block-icon"><CircleCloseFilled /></el-icon>
+          <el-icon v-else class="warn-icon"><WarningFilled /></el-icon>
+          <div class="preflight-body">
+            <div class="preflight-label">{{ c.label }}</div>
+            <div v-if="c.detail" class="preflight-detail">{{ c.detail }}</div>
+          </div>
+          <el-tag v-if="!c.ok" :type="c.severity === 'block' ? 'danger' : 'warning'" size="small">
+            {{ c.severity === 'block' ? '必须修复' : '建议处理' }}
+          </el-tag>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="preflightDialog = false">取消</el-button>
+        <el-button
+          v-if="preflightData?.can_publish"
+          type="success" :loading="transitioning"
+          @click="doPublish(preflightWarnings.length > 0)">
+          {{ preflightWarnings.length > 0 ? '忽略警告，强制发布' : '立即发布' }}
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import {
+  ArrowLeft, Refresh, Edit, Plus, Link, MagicStick, User,
+  VideoPlay, VideoPause, CircleClose,
+  CircleCheckFilled, CircleCloseFilled, WarningFilled
+} from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
+import AccessUrlCard from '@/components/AccessUrlCard.vue'
+import { useSystemStore } from '@/stores/system'
+
+const sys = useSystemStore()
+import {
+  getProject, bindMachines, bindProducts, generateCodes,
+  listRedeemCodes, revokeCode,
+  preflightProject, transitionProject
+} from '@/api/projects'
+import { listMachines } from '@/api/devices'
+import { listProducts } from '@/api/products'
+
+const route = useRoute()
+const id = route.params.id
+
+const loading = ref(false)
+const project = ref(null)
+
+async function reload() {
+  loading.value = true
+  try {
+    project.value = await getProject(id)
+    await loadCodes()
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(reload)
+
+// ============ 项目状态转移 ============
+const transitioning = ref(false)
+const preflightDialog = ref(false)
+const preflightData = ref(null)
+const preflightWarnings = computed(
+  () => preflightData.value?.checks.filter(c => !c.ok && c.severity === 'warn') || []
+)
+
+async function onPublish() {
+  // draft → running，弹自检
+  transitioning.value = true
+  try {
+    preflightData.value = await preflightProject(id)
+    preflightDialog.value = true
+  } finally {
+    transitioning.value = false
+  }
+}
+
+async function doPublish(force) {
+  transitioning.value = true
+  try {
+    await transitionProject(id, 'running', force)
+    ElMessage.success('已发布上线，C 端可领码')
+    preflightDialog.value = false
+    await reload()
+  } finally {
+    transitioning.value = false
+  }
+}
+
+async function onTransition(target) {
+  const labels = { running: '继续活动', paused: '暂停活动', finished: '结束活动' }
+  const warns = {
+    paused: '暂停后 C 端将无法领码，已发出的兑换码仍可在派样机使用。确认？',
+    finished: '结束后不可再切回 running（终态）。建议确认无遗留兑换码。确认？',
+    running: '将立即恢复 C 端领码。确认？',
+  }
+  try {
+    await ElMessageBox.confirm(warns[target], labels[target], {
+      type: target === 'finished' ? 'warning' : 'info',
+      confirmButtonText: '确定', cancelButtonText: '取消'
+    })
+    transitioning.value = true
+    await transitionProject(id, target)
+    ElMessage.success(`已切换到「${({running:'进行中',paused:'已暂停',finished:'已结束'})[target]}」`)
+    await reload()
+  } catch (e) {
+    if (e !== 'cancel') throw e
+  } finally {
+    transitioning.value = false
+  }
+}
+
+function statusTag(s) { return ({ draft:'info', running:'success', paused:'warning', finished:'' })[s] || 'info' }
+function statusLabel(s) { return ({ draft:'草稿', running:'进行中', paused:'已暂停', finished:'已结束' })[s] || s }
+function machineStatusTag(s) { return ({ online:'success', offline:'info', fault:'danger' })[s] || 'info' }
+function machineStatusLabel(s) { return ({ online:'在线', offline:'离线', fault:'故障' })[s] || s }
+function codeStatusTag(s) { return ({ unused:'success', used:'info', expired:'warning', revoked:'danger' })[s] || 'info' }
+function formatTime(iso) { return iso ? new Date(iso).toLocaleString('zh-CN', { hour12: false }) : '—' }
+
+function openH5() {
+  const base = window.location.origin.replace(':5173', ':8000')
+  const mid = project.value.machines[0]?.machine_id
+  const url = mid ? `${base}/p/${project.value.id}/?machine_id=${mid}` : `${base}/p/${project.value.id}/`
+  window.open(url, '_blank')
+}
+
+// ---- 客户端看板 ----
+function copyClientUrl() {
+  const url = project.value.client_url
+  if (!url) return
+  navigator.clipboard.writeText(url).then(() => {
+    ElMessage.success('客户端链接已复制，可发送给客户甲方')
+  }).catch(() => {
+    const ta = document.createElement('textarea')
+    ta.value = url
+    ta.style.position = 'fixed'; ta.style.left = '-9999px'
+    document.body.appendChild(ta); ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    ElMessage.success('客户端链接已复制')
+  })
+}
+
+function openClientUrl() {
+  window.open(project.value.client_url, '_blank')
+}
+
+// ---- 兑换码列表 ----
+const codes = ref([])
+const codeFilter = ref('')
+const codeLoading = ref(false)
+const codePage = reactive({ current: 1, pageSize: 50, total: 0 })
+const codeTotal = computed(() => codePage.total)
+const codeUsed = computed(() =>
+  codes.value.filter(c => c.status === 'used').length // 仅当前页统计，完整统计走 project 列表 aggregate
+)
+async function loadCodes() {
+  codeLoading.value = true
+  try {
+    const data = await listRedeemCodes({
+      project: id,
+      status: codeFilter.value || undefined,
+      page: codePage.current,
+      page_size: codePage.pageSize
+    })
+    codes.value = data.results || data
+    codePage.total = data.count ?? codes.value.length
+  } finally {
+    codeLoading.value = false
+  }
+}
+async function doRevoke(row) {
+  await revokeCode(row.id)
+  ElMessage.success('已作废')
+  await loadCodes()
+}
+
+// ---- 绑定设备 ----
+const bindDialog = ref(false)
+const machinesLoading = ref(false)
+const allMachines = ref([])
+const selectedMachineIds = ref([])
+const machineTableRef = ref()
+const bindSaving = ref(false)
+
+async function openBindDialog() {
+  bindDialog.value = true
+  machinesLoading.value = true
+  try {
+    const data = await listMachines({ page_size: 500 })
+    allMachines.value = data.results || data
+    // 勾选当前已绑
+    await nextTick()
+    const boundIds = new Set(project.value.machines.map(m => m.id))
+    allMachines.value.forEach(m => {
+      machineTableRef.value?.toggleRowSelection(m, boundIds.has(m.id))
+    })
+  } finally {
+    machinesLoading.value = false
+  }
+}
+async function submitBind() {
+  bindSaving.value = true
+  try {
+    project.value = await bindMachines(id, selectedMachineIds.value)
+    ElMessage.success(`已绑定 ${project.value.machines.length} 台设备`)
+    bindDialog.value = false
+  } finally {
+    bindSaving.value = false
+  }
+}
+
+// ---- 挂载礼品 ----
+const productDialog = ref(false)
+const productsLoading = ref(false)
+const allProducts = ref([])
+const selectedProductIds = ref([])
+const productSearch = ref('')
+const productTableRef = ref()
+const productSaving = ref(false)
+
+async function loadProducts() {
+  productsLoading.value = true
+  try {
+    const data = await listProducts({ search: productSearch.value, page_size: 200 })
+    allProducts.value = data.results || data
+    await nextTick()
+    const boundIds = new Set((project.value.products || []).map(p => p.id))
+    allProducts.value.forEach(p => {
+      productTableRef.value?.toggleRowSelection(p, boundIds.has(p.id))
+    })
+  } finally {
+    productsLoading.value = false
+  }
+}
+async function openProductDialog() {
+  productDialog.value = true
+  productSearch.value = ''
+  await loadProducts()
+}
+async function submitProducts() {
+  productSaving.value = true
+  try {
+    project.value = await bindProducts(id, selectedProductIds.value)
+    ElMessage.success(`已挂载 ${project.value.products.length} 个礼品`)
+    productDialog.value = false
+  } finally {
+    productSaving.value = false
+  }
+}
+
+// ---- 生成兑换码 ----
+const genDialog = ref(false)
+const genCount = ref(50)
+const genSaving = ref(false)
+function openGenDialog() {
+  genCount.value = 50
+  genDialog.value = true
+}
+async function submitGen() {
+  genSaving.value = true
+  try {
+    const res = await generateCodes(id, genCount.value)
+    ElMessage.success(`已生成 ${res.created} / ${res.requested} 个兑换码`)
+    genDialog.value = false
+    codeFilter.value = 'unused'
+    codePage.current = 1
+    await loadCodes()
+  } finally {
+    genSaving.value = false
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.project-detail { display:flex; flex-direction:column; gap:16px; }
+.info-card { background:#1a1f2c; border:1px solid #2a3142;
+  :deep(.el-card__header){ border-bottom:1px solid #2a3142; } }
+.header-row { display:flex; align-items:center; gap:12px;
+  .title { font-size:15px; color:#e6e6e6; font-weight:500; }
+  .spacer { flex:1; } }
+.rules { margin:0; white-space:pre-wrap; font-family:inherit; color:#c0c4cc; }
+.code-cell { background:#0f1419; border:1px solid #2a3142; padding:2px 8px; border-radius:4px;
+  font-family: ui-monospace, Menlo, Consolas, monospace; color:#67c23a; }
+
+/* 发布前自检 */
+.preflight-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; margin-bottom: 8px;
+  background: #0f1419; border: 1px solid #2a3142; border-radius: 8px;
+  .preflight-body { flex: 1; min-width: 0; }
+  .preflight-label { color: #e6e6e6; font-size: 14px; }
+  .preflight-detail { color: #909399; font-size: 12px; margin-top: 2px; }
+  .ok-icon    { color: #67c23a; font-size: 20px; }
+  .block-icon { color: #f56c6c; font-size: 20px; }
+  .warn-icon  { color: #e6a23c; font-size: 20px; }
+}
+.client-url-row {
+  display: flex; align-items: center; gap: 12px;
+}
+.client-url-row .url-text {
+  flex: 1; background: #0f1419; border: 1px solid #2a3142;
+  padding: 8px 12px; border-radius: 6px;
+  font-family: ui-monospace, monospace; font-size: 13px;
+  color: #67c23a; word-break: break-all;
+}
+.unset-row {
+  color: #606266; font-size: 13px; padding: 16px 0; text-align: center;
+}
+</style>

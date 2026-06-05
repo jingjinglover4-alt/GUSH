@@ -1,0 +1,1 @@
+{"Target":"nginx","LocalPath":"/opt/gush2/frontend","DockerfilePath":"/opt/gush2/frontend/Dockerfile.prod","GroupRef":"imgcl371pqh3rpbkd4a55nn6t"}
